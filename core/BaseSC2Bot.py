@@ -232,8 +232,8 @@ class BaseSC2Bot(BotAI):
             reasoning = e.get("reasoning") or ""
             reasoning_str = f'  "{reasoning}"' if reasoning else ""
             lines.append(
-                f"[Step {e['step']:>4}] YOUR UNITS {your_count} | ENEMY UNITS {enemy_count}"
-                f"  →  {e['directive']}{reasoning_str}"
+                f"[Step {e['step']:>4}] YOUR UNITS {your_count},  ENEMY UNITS {enemy_count},  "
+                f"{e['directive']}@({e['target_x']}, {e['target_y']}) {reasoning_str}"
             )
         return "\n".join(lines)
 

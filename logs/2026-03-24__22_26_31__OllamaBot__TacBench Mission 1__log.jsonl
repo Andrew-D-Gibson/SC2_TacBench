@@ -1,0 +1,176 @@
+{
+    "type": "summary",
+    "outcome": "LOSS",
+    "total_steps": 75,
+    "total_llm_calls": 6,
+    "total_llm_failures": 0,
+    "config": {
+        "MODEL_NAME": "qwen3:8b",
+        "K_STEPS": 2,
+        "MAX_STEPS": 5000,
+        "FALLBACK_DIRECTIVE": "HOLD_POSITION"
+    }
+}
+{
+    "type": "llm_call",
+    "step": 2,
+    "battlefield": [
+        "OBJECTIVE: Locate and destroy the enemy Command Center.",
+        "You win when the enemy Command Center is destroyed.",
+        "You lose if all your combat units are eliminated.",
+        "",
+        "Time: 00:00 (step 2)",
+        "Supply: 10/0 | Army: 8",
+        "YOUR UNITS(8): Marine 100%@(7,7); Marine 100%@(9,9); Marine 100%@(10,9); Marine 100%@(9,7); Marine 100%@(8,9); Marauder 100%@(9,10); Marauder 100%@(8,10); Marine 100%@(10,8)",
+        "ENEMY UNITS(14): Marine 100%@(5,20); Marine 100%@(6,23); Marine 100%@(7,24); Marine 100%@(5,23); Marine 100%@(5,22); Marauder 100%@(9,22); Marauder 100%@(7,22); Marine 100%@(7,21); Marine 100%@(10,23); Marauder 100%@(7,25); Marine 100%@(12,24); Marauder 100%@(10,25); Marine 100%@(9,24); Marine 100%@(6,21)",
+        "ENEMY STRUCTURES(1): CommandCenter 100%@(22,22)"
+    ],
+    "directive": "SPREAD",
+    "reasoning": "To reduce splash damage vulnerability before engaging the enemy forces.",
+    "target_x": null,
+    "target_y": null,
+    "raw": "{\"directive\": \"SPREAD\", \"reasoning\": \"To reduce splash damage vulnerability before engaging the enemy forces.\"}",
+    "llm_latency_ms": 2084,
+    "llm_error": null,
+    "fallback_used": false
+}
+{
+    "type": "llm_call",
+    "step": 14,
+    "battlefield": [
+        "OBJECTIVE: Locate and destroy the enemy Command Center.",
+        "You win when the enemy Command Center is destroyed.",
+        "You lose if all your combat units are eliminated.",
+        "",
+        "Time: 00:02 (step 14)",
+        "Supply: 10/0 | Army: 8",
+        "YOUR UNITS(8): Marine 100%@(10,9); Marine 100%@(8,9); Marauder 100%@(8,10); Marine 100%@(7,7); Marine 100%@(9,7); Marine 100%@(9,9); Marauder 100%@(9,10); Marine 100%@(10,8)",
+        "ENEMY UNITS(14): Marine 100%@(5,22); Marauder 100%@(9,22); Marine 100%@(6,23); Marauder 100%@(7,25); Marine 100%@(7,21); Marine 100%@(9,24); Marine 100%@(5,23); Marine 100%@(12,24); Marine 100%@(5,20); Marine 100%@(7,24); Marauder 100%@(10,25); Marine 100%@(6,21); Marauder 100%@(7,22); Marine 100%@(10,23)",
+        "ENEMY STRUCTURES(1): CommandCenter 100%@(22,22)",
+        "",
+        "RECENT HISTORY (last 1 decision):",
+        "[Step    2] YOUR UNITS 8 | ENEMY UNITS 14  \u2192  SPREAD  \"To reduce splash damage vulnerability before engaging the enemy forces.\""
+    ],
+    "directive": "ATTACK",
+    "reasoning": "To directly engage and destroy the enemy Command Center, the primary objective.",
+    "target_x": 22.0,
+    "target_y": 22.0,
+    "raw": "{\"directive\": \"ATTACK\", \"target_x\": 22.0, \"target_y\": 22.0, \"reasoning\": \"To directly engage and destroy the enemy Command Center, the primary objective.\"}",
+    "llm_latency_ms": 2303,
+    "llm_error": null,
+    "fallback_used": false
+}
+{
+    "type": "llm_call",
+    "step": 28,
+    "battlefield": [
+        "OBJECTIVE: Locate and destroy the enemy Command Center.",
+        "You win when the enemy Command Center is destroyed.",
+        "You lose if all your combat units are eliminated.",
+        "",
+        "Time: 00:05 (step 28)",
+        "Supply: 10/0 | Army: 8",
+        "YOUR UNITS(8): Marine 100%@(8,7); Marine 100%@(9,10); Marauder 100%@(8,10); Marine 100%@(7,8); Marine 100%@(9,8); Marine 100%@(9,7); Marine 100%@(8,7); Marauder 100%@(8,8)",
+        "ENEMY UNITS(14): Marine 100%@(7,21); Marine 100%@(6,21); Marine 100%@(6,23); Marine 100%@(7,24); Marine 100%@(5,23); Marauder 100%@(7,22); Marine 100%@(12,24); Marauder 100%@(10,25); Marauder 100%@(9,22); Marauder 100%@(7,25); Marine 100%@(5,20); Marine 100%@(5,22); Marine 100%@(10,23); Marine 100%@(9,24)",
+        "ENEMY STRUCTURES(1): CommandCenter 100%@(22,22)",
+        "",
+        "RECENT HISTORY (last 2 decisions):",
+        "[Step    2] YOUR UNITS 8 | ENEMY UNITS 14  \u2192  SPREAD  \"To reduce splash damage vulnerability before engaging the enemy forces.\"",
+        "[Step   14] YOUR UNITS 8 | ENEMY UNITS 14  \u2192  ATTACK  \"To directly engage and destroy the enemy Command Center, the primary objective.\""
+    ],
+    "directive": "FOCUS_FIRE",
+    "reasoning": "The enemy Command Center is the primary objective and is the highest-value target to prioritize destruction.",
+    "target_x": null,
+    "target_y": null,
+    "raw": "{\"directive\": \"FOCUS_FIRE\", \"reasoning\": \"The enemy Command Center is the primary objective and is the highest-value target to prioritize destruction.\"}",
+    "llm_latency_ms": 1637,
+    "llm_error": null,
+    "fallback_used": false
+}
+{
+    "type": "llm_call",
+    "step": 38,
+    "battlefield": [
+        "OBJECTIVE: Locate and destroy the enemy Command Center.",
+        "You win when the enemy Command Center is destroyed.",
+        "You lose if all your combat units are eliminated.",
+        "",
+        "Time: 00:06 (step 38)",
+        "Supply: 10/0 | Army: 8",
+        "YOUR UNITS(8): Marine 100%@(10,12); Marine 100%@(10,12); Marauder 100%@(11,14); Marine 100%@(12,11); Marine 100%@(12,13); Marine 100%@(11,11); Marauder 100%@(11,13); Marine 100%@(12,14)",
+        "ENEMY UNITS(14): Marine 100%@(5,22); Marauder 100%@(7,22); Marauder 100%@(9,22); Marine 100%@(12,24); Marine 100%@(6,23); Marine 100%@(5,20); Marine 100%@(6,21); Marauder 100%@(10,25); Marine 100%@(7,21); Marine 100%@(9,24); Marine 100%@(5,23); Marauder 100%@(7,25); Marine 100%@(7,24); Marine 100%@(10,23)",
+        "ENEMY STRUCTURES(1): CommandCenter 100%@(22,22)",
+        "",
+        "RECENT HISTORY (last 3 decisions):",
+        "[Step    2] YOUR UNITS 8 | ENEMY UNITS 14  \u2192  SPREAD  \"To reduce splash damage vulnerability before engaging the enemy forces.\"",
+        "[Step   14] YOUR UNITS 8 | ENEMY UNITS 14  \u2192  ATTACK  \"To directly engage and destroy the enemy Command Center, the primary objective.\"",
+        "[Step   28] YOUR UNITS 8 | ENEMY UNITS 14  \u2192  FOCUS_FIRE  \"The enemy Command Center is the primary objective and is the highest-value target to prioritize destruction.\""
+    ],
+    "directive": "ATTACK",
+    "reasoning": "To directly engage and destroy the enemy Command Center, the primary objective.",
+    "target_x": 22.0,
+    "target_y": 22.0,
+    "raw": "{\"directive\": \"ATTACK\", \"target_x\": 22.0, \"target_y\": 22.0, \"reasoning\": \"To directly engage and destroy the enemy Command Center, the primary objective.\"}",
+    "llm_latency_ms": 2020,
+    "llm_error": null,
+    "fallback_used": false
+}
+{
+    "type": "llm_call",
+    "step": 50,
+    "battlefield": [
+        "OBJECTIVE: Locate and destroy the enemy Command Center.",
+        "You win when the enemy Command Center is destroyed.",
+        "You lose if all your combat units are eliminated.",
+        "",
+        "Time: 00:09 (step 50)",
+        "Supply: 10/0 | Army: 8",
+        "YOUR UNITS(8): Marine 100%@(12,17); Marine 73%@(9,17); Marauder 100%@(10,16); Marauder 19%@(10,17); Marine 100%@(9,17); Marine 51%@(11,17); Marine 86%@(9,17); Marine 100%@(12,17)",
+        "ENEMY UNITS(13): Marine 100%@(5,20); Marine 100%@(11,23); Marine 100%@(5,22); Marauder 100%@(10,24); Marine 100%@(5,21); Marine 100%@(8,22); Marauder 100%@(7,22); Marauder 100%@(9,22); Marine 100%@(5,22); Marine 100%@(7,21); Marauder 100%@(8,23); Marine 100%@(6,21); Marine 100%@(5,23)",
+        "ENEMY STRUCTURES(1): CommandCenter 100%@(22,22)",
+        "",
+        "RECENT HISTORY (last 4 decisions):",
+        "[Step    2] YOUR UNITS 8 | ENEMY UNITS 14  \u2192  SPREAD  \"To reduce splash damage vulnerability before engaging the enemy forces.\"",
+        "[Step   14] YOUR UNITS 8 | ENEMY UNITS 14  \u2192  ATTACK  \"To directly engage and destroy the enemy Command Center, the primary objective.\"",
+        "[Step   28] YOUR UNITS 8 | ENEMY UNITS 14  \u2192  FOCUS_FIRE  \"The enemy Command Center is the primary objective and is the highest-value target to prioritize destruction.\"",
+        "[Step   38] YOUR UNITS 8 | ENEMY UNITS 14  \u2192  ATTACK  \"To directly engage and destroy the enemy Command Center, the primary objective.\""
+    ],
+    "directive": "ATTACK",
+    "reasoning": "To directly engage and destroy the enemy Command Center, the primary objective.",
+    "target_x": 22.0,
+    "target_y": 22.0,
+    "raw": "{\"directive\": \"ATTACK\", \"target_x\": 22.0, \"target_y\": 22.0, \"reasoning\": \"To directly engage and destroy the enemy Command Center, the primary objective.\"}",
+    "llm_latency_ms": 1917,
+    "llm_error": null,
+    "fallback_used": false
+}
+{
+    "type": "llm_call",
+    "step": 62,
+    "battlefield": [
+        "OBJECTIVE: Locate and destroy the enemy Command Center.",
+        "You win when the enemy Command Center is destroyed.",
+        "You lose if all your combat units are eliminated.",
+        "",
+        "Time: 00:11 (step 62)",
+        "Supply: 4/0 | Army: 3",
+        "YOUR UNITS(3): Marauder 96%@(10,16); Marine 77%@(13,18); Marine 64%@(12,17)",
+        "ENEMY UNITS(12): Marine 100%@(6,21); Marine 100%@(6,21); Marine 100%@(7,21); Marauder 100%@(7,22); Marine 60%@(11,23); Marine 100%@(6,20); Marauder 100%@(10,24); Marauder 100%@(8,23); Marine 100%@(6,22); Marine 100%@(8,22); Marauder 80%@(9,22); Marine 100%@(7,21)",
+        "ENEMY STRUCTURES(1): CommandCenter 100%@(22,22)",
+        "",
+        "RECENT HISTORY (last 5 decisions):",
+        "[Step    2] YOUR UNITS 8 | ENEMY UNITS 14  \u2192  SPREAD  \"To reduce splash damage vulnerability before engaging the enemy forces.\"",
+        "[Step   14] YOUR UNITS 8 | ENEMY UNITS 14  \u2192  ATTACK  \"To directly engage and destroy the enemy Command Center, the primary objective.\"",
+        "[Step   28] YOUR UNITS 8 | ENEMY UNITS 14  \u2192  FOCUS_FIRE  \"The enemy Command Center is the primary objective and is the highest-value target to prioritize destruction.\"",
+        "[Step   38] YOUR UNITS 8 | ENEMY UNITS 14  \u2192  ATTACK  \"To directly engage and destroy the enemy Command Center, the primary objective.\"",
+        "[Step   50] YOUR UNITS 8 | ENEMY UNITS 13  \u2192  ATTACK  \"To directly engage and destroy the enemy Command Center, the primary objective.\""
+    ],
+    "directive": "ATTACK",
+    "reasoning": "To directly engage and destroy the enemy Command Center, the primary objective.",
+    "target_x": 22.0,
+    "target_y": 22.0,
+    "raw": "{\"directive\": \"ATTACK\", \"target_x\": 22.0, \"target_y\": 22.0, \"reasoning\": \"To directly engage and destroy the enemy Command Center, the primary objective.\"}",
+    "llm_latency_ms": 2048,
+    "llm_error": null,
+    "fallback_used": false
+}

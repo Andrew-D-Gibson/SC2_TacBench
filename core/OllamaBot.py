@@ -6,7 +6,7 @@ from pathlib import Path
 from BaseSC2Bot import BaseSC2Bot
 
 OLLAMA_URL = "http://localhost:11434/api/chat"
-STREAM = True  # set to False to wait for the full response without token-by-token output
+STREAM = False  # set to False to wait for the full response without token-by-token output
 
 # Load the shared prompt template once at import time.
 # The prompt file lives alongside this script in core/.

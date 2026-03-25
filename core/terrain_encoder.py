@@ -4,7 +4,8 @@ def terrain_encoder(
 	placement_grid=None,
 	downsample_factor: int = 4,
 	include_legend: bool = True,
-	include_summary: bool = True,
+	include_summary: bool = False,
+	include_axes: bool = True,
 ) -> str:
 	"""
 	Convert SC2 terrain data into an LLM-friendly symbolic map.
@@ -94,6 +95,33 @@ def terrain_encoder(
 
 	ds_grid = downsample()
 
+	# --- Axis labels ---
+	def build_axes():
+		num_rows = len(ds_grid)
+		num_cols = len(ds_grid[0])
+
+		max_y_coord = (num_rows - 1) * downsample_factor
+		y_label_w = len(str(max_y_coord)) + 2  # digits + ": "
+
+		labeled_rows = [
+			f"{i * downsample_factor:>{y_label_w - 2}}: {row}"
+			for i, row in enumerate(ds_grid)
+		]
+
+		max_x_coord = (num_cols - 1) * downsample_factor
+		x_label_digits = len(str(max_x_coord))
+		tick_interval = x_label_digits + 1
+
+		x_row = ['.'] * (num_cols + x_label_digits)  # extra room so last label never truncates
+		for col in range(0, num_cols, tick_interval):
+			label = str(col * downsample_factor)
+			for i, ch in enumerate(label):
+				x_row[col + i] = ch
+
+		x_axis = ' ' * y_label_w + ''.join(x_row).rstrip('.')
+
+		return labeled_rows, x_axis
+
 	# --- Summary stats ---
 	def build_summary():
 		total_cells = h * w
@@ -102,7 +130,6 @@ def terrain_encoder(
 		return (
 			f"Map Size: {w}x{h}\n"
 			f"Downsampled: {len(ds_grid[0])}x{len(ds_grid)} (factor={downsample_factor})\n"
-			f"Blocked Cells: {blocked} ({blocked / total_cells:.1%})"
 		)
 
 	# --- Legend ---
@@ -127,7 +154,12 @@ def terrain_encoder(
 	if include_legend:
 		parts.append(build_legend())
 
-	parts.append("Terrain:")
-	parts.append("\n".join(ds_grid))
+	parts.append(f"Terrain (1 cell = {downsample_factor} game units):")
+
+	if include_axes:
+		labeled_rows, x_axis = build_axes()
+		parts.append("\n".join(labeled_rows) + "\n" + x_axis)
+	else:
+		parts.append("\n".join(ds_grid))
 
 	return "\n\n".join(parts)

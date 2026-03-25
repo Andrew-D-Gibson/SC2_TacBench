@@ -8,67 +8,10 @@ from terrain_encoder import terrain_encoder
 _terrain_cache: dict[str, str] = {}
 
 
-# --- Shared entry formatters ---
-
-def _fmt_cargo(unit) -> str:
-    # Your Units
-    if unit.is_mine:
-        if unit.passengers:
-            names = ", ".join(p.name for p in unit.passengers)
-            return f" [{unit.cargo_used}/{unit.cargo_max}: {names}]"
-        if unit.cargo_used > 0:
-            return f" [{unit.cargo_used}/{unit.cargo_max}]"
-        return ""
-
-
-    # Bunker special case
-    if unit.type_id == UnitTypeId.BUNKER:
-        # Enemy bunker: infer occupancy
-        if unit.is_enemy:
-            if unit.is_attacking or unit.weapon_cooldown > 0:
-                return " [occupied:firing]"
-            # Sometimes cargo_used is populated, but not reliable
-            if unit.cargo_used > 0:
-                return f" [{unit.cargo_used}/{unit.cargo_max}: occupied?]"
-            return " [empty?]"
-        return ""
-
-
-    # TRANSPORT-LIKE UNITS
-    TRANSPORT_TYPES = {
-        UnitTypeId.MEDIVAC,
-        UnitTypeId.WARPPRISM,
-        UnitTypeId.WARPPRISMPHASING,
-        UnitTypeId.OVERLORDTRANSPORT,
-        UnitTypeId.NYDUSNETWORK,
-        UnitTypeId.NYDUSCANAL,
-    }
-
-    if unit.type_id in TRANSPORT_TYPES:
-        if unit.passengers:
-            names = ", ".join(p.name for p in unit.passengers)
-            return f" [{unit.cargo_used}/{unit.cargo_max}: {names}]"
-
-        if unit.cargo_used > 0:
-            return f" [{unit.cargo_used}/{unit.cargo_max}]"
-
-        return ""
-
-
-    # FALLBACK (enemy unknowns)
-    if unit.is_enemy:
-        if unit.cargo_used > 0:
-            return f" [{unit.cargo_used}/{unit.cargo_max}]"
-
-    return ""
-
-
 def _fmt_unit_entry(u) -> str:
     hp_pct = int(100 * u.health / max(u.health_max, 1))
-    return f"{u.name} {hp_pct}%@({u.position.x:.0f},{u.position.y:.0f}){_fmt_cargo(u)}"
+    return f"{u.name} {hp_pct}%@({u.position.x:.0f},{u.position.y:.0f})"
 
-
-# --- Section builders ---
 
 def _fmt_units(units, label: str, cap: int = 64) -> str:
     if not units:
@@ -98,9 +41,9 @@ def _fmt_terrain(bot: BotAI, downsample: int) -> str:
     if key not in _terrain_cache:
         gi = bot.game_info
         _terrain_cache[key] = terrain_encoder(
-            gi.terrain_height.data,
-            gi.pathing_grid.data,
-            gi.placement_grid.data,
+            gi.terrain_height.data_numpy,
+            gi.pathing_grid.data_numpy,
+            gi.placement_grid.data_numpy,
             downsample_factor=downsample,
         )
     return _terrain_cache[key]

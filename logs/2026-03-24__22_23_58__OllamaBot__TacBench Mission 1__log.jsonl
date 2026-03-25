@@ -1,0 +1,146 @@
+{
+    "type": "summary",
+    "outcome": "LOSS",
+    "total_steps": 88,
+    "total_llm_calls": 5,
+    "total_llm_failures": 0,
+    "config": {
+        "MODEL_NAME": "qwen3:8b",
+        "K_STEPS": 15,
+        "MAX_STEPS": 5000,
+        "FALLBACK_DIRECTIVE": "HOLD_POSITION"
+    }
+}
+{
+    "type": "llm_call",
+    "step": 15,
+    "battlefield": [
+        "OBJECTIVE: Locate and destroy the enemy Command Center.",
+        "You win when the enemy Command Center is destroyed.",
+        "You lose if all your combat units are eliminated.",
+        "",
+        "Time: 00:02 (step 15)",
+        "Supply: 10/0 | Army: 8",
+        "YOUR UNITS(8): Marine 100%@(9,9); Marine 100%@(8,9); Marine 100%@(10,8); Marine 100%@(9,7); Marine 100%@(7,7); Marine 100%@(10,9); Marauder 100%@(9,10); Marauder 100%@(8,10)",
+        "ENEMY UNITS(14): Marine 100%@(5,20); Marine 100%@(6,21); Marauder 100%@(9,22); Marine 100%@(5,22); Marine 100%@(10,23); Marine 100%@(6,23); Marine 100%@(12,24); Marine 100%@(7,21); Marine 100%@(5,23); Marauder 100%@(7,25); Marine 100%@(7,24); Marauder 100%@(7,22); Marine 100%@(9,24); Marauder 100%@(10,25)",
+        "ENEMY STRUCTURES(1): CommandCenter 100%@(22,22)"
+    ],
+    "directive": "MOVE",
+    "reasoning": "Repositioning to a central location to better coordinate the attack on the Command Center.",
+    "target_x": 15.0,
+    "target_y": 15.0,
+    "raw": "{\"directive\": \"MOVE\", \"target_x\": 15.0, \"target_y\": 15.0, \"reasoning\": \"Repositioning to a central location to better coordinate the attack on the Command Center.\"}",
+    "llm_latency_ms": 2394,
+    "llm_error": null,
+    "fallback_used": false
+}
+{
+    "type": "llm_call",
+    "step": 30,
+    "battlefield": [
+        "OBJECTIVE: Locate and destroy the enemy Command Center.",
+        "You win when the enemy Command Center is destroyed.",
+        "You lose if all your combat units are eliminated.",
+        "",
+        "Time: 00:05 (step 30)",
+        "Supply: 10/0 | Army: 8",
+        "YOUR UNITS(8): Marauder 100%@(8,10); Marine 100%@(8,8); Marine 100%@(9,9); Marine 100%@(10,8); Marine 100%@(9,8); Marauder 100%@(10,10); Marine 100%@(10,9); Marine 100%@(8,9)",
+        "ENEMY UNITS(14): Marine 100%@(5,23); Marine 100%@(5,20); Marine 100%@(6,21); Marine 100%@(7,21); Marine 100%@(7,24); Marauder 100%@(9,22); Marauder 100%@(7,25); Marauder 100%@(7,22); Marine 100%@(6,23); Marine 100%@(5,22); Marine 100%@(9,24); Marauder 100%@(10,25); Marine 100%@(12,24); Marine 100%@(10,23)",
+        "ENEMY STRUCTURES(1): CommandCenter 100%@(22,22)",
+        "",
+        "RECENT HISTORY (last 1 decision):",
+        "[Step   15] YOUR UNITS 8 | ENEMY UNITS 14  \u2192  MOVE  \"Repositioning to a central location to better coordinate the attack on the Command Center.\""
+    ],
+    "directive": "ATTACK",
+    "reasoning": "Directing the squad to attack the enemy Command Center to fulfill the objective.",
+    "target_x": 22.0,
+    "target_y": 22.0,
+    "raw": "{\"directive\": \"ATTACK\", \"target_x\": 22.0, \"target_y\": 22.0, \"reasoning\": \"Directing the squad to attack the enemy Command Center to fulfill the objective.\"}",
+    "llm_latency_ms": 2071,
+    "llm_error": null,
+    "fallback_used": false
+}
+{
+    "type": "llm_call",
+    "step": 45,
+    "battlefield": [
+        "OBJECTIVE: Locate and destroy the enemy Command Center.",
+        "You win when the enemy Command Center is destroyed.",
+        "You lose if all your combat units are eliminated.",
+        "",
+        "Time: 00:08 (step 45)",
+        "Supply: 10/0 | Army: 8",
+        "YOUR UNITS(8): Marauder 100%@(14,16); Marine 100%@(14,15); Marine 100%@(15,15); Marine 100%@(14,15); Marine 100%@(13,14); Marine 100%@(14,14); Marine 100%@(15,15); Marauder 100%@(15,16)",
+        "ENEMY UNITS(14): Marine 100%@(9,24); Marine 100%@(10,23); Marauder 100%@(9,22); Marine 100%@(12,24); Marauder 100%@(7,22); Marine 100%@(5,22); Marauder 100%@(10,25); Marauder 100%@(7,25); Marine 100%@(5,23); Marine 100%@(5,20); Marine 100%@(7,21); Marine 100%@(6,23); Marine 100%@(6,21); Marine 100%@(7,24)",
+        "ENEMY STRUCTURES(1): CommandCenter 100%@(22,22)",
+        "",
+        "RECENT HISTORY (last 2 decisions):",
+        "[Step   15] YOUR UNITS 8 | ENEMY UNITS 14  \u2192  MOVE  \"Repositioning to a central location to better coordinate the attack on the Command Center.\"",
+        "[Step   30] YOUR UNITS 8 | ENEMY UNITS 14  \u2192  ATTACK  \"Directing the squad to attack the enemy Command Center to fulfill the objective.\""
+    ],
+    "directive": "FOCUS_FIRE",
+    "reasoning": "The enemy Command Center is the primary objective and the lowest-health visible enemy, so focusing fire on it will ensure its destruction.",
+    "target_x": null,
+    "target_y": null,
+    "raw": "{\"directive\": \"FOCUS_FIRE\", \"reasoning\": \"The enemy Command Center is the primary objective and the lowest-health visible enemy, so focusing fire on it will ensure its destruction.\"}",
+    "llm_latency_ms": 1686,
+    "llm_error": null,
+    "fallback_used": false
+}
+{
+    "type": "llm_call",
+    "step": 60,
+    "battlefield": [
+        "OBJECTIVE: Locate and destroy the enemy Command Center.",
+        "You win when the enemy Command Center is destroyed.",
+        "You lose if all your combat units are eliminated.",
+        "",
+        "Time: 00:10 (step 60)",
+        "Supply: 10/0 | Army: 8",
+        "YOUR UNITS(8): Marauder 100%@(13,18); Marine 6%@(13,20); Marine 100%@(16,17); Marine 100%@(14,18); Marauder 100%@(13,19); Marine 100%@(15,18); Marine 100%@(16,17); Marine 100%@(16,16)",
+        "ENEMY UNITS(14): Marine 100%@(6,21); Marauder 100%@(7,22); Marine 100%@(10,23); Marine 100%@(6,23); Marine 100%@(5,23); Marauder 100%@(7,25); Marauder 100%@(10,25); Marine 100%@(9,24); Marauder 100%@(9,22); Marine 100%@(12,24); Marine 100%@(5,20); Marine 100%@(7,21); Marine 100%@(5,22); Marine 100%@(7,24)",
+        "ENEMY STRUCTURES(1): CommandCenter 69%@(22,22)",
+        "",
+        "RECENT HISTORY (last 3 decisions):",
+        "[Step   15] YOUR UNITS 8 | ENEMY UNITS 14  \u2192  MOVE  \"Repositioning to a central location to better coordinate the attack on the Command Center.\"",
+        "[Step   30] YOUR UNITS 8 | ENEMY UNITS 14  \u2192  ATTACK  \"Directing the squad to attack the enemy Command Center to fulfill the objective.\"",
+        "[Step   45] YOUR UNITS 8 | ENEMY UNITS 14  \u2192  FOCUS_FIRE  \"The enemy Command Center is the primary objective and the lowest-health visible enemy, so focusing fire on it will ensure its destruction.\""
+    ],
+    "directive": "ATTACK",
+    "reasoning": "The enemy Command Center is the primary objective and the lowest-health visible enemy, so directing the squad to attack it will ensure its destruction.",
+    "target_x": 22.0,
+    "target_y": 22.0,
+    "raw": "{\"directive\": \"ATTACK\", \"target_x\": 22.0, \"target_y\": 22.0, \"reasoning\": \"The enemy Command Center is the primary objective and the lowest-health visible enemy, so directing the squad to attack it will ensure its destruction.\"}",
+    "llm_latency_ms": 2336,
+    "llm_error": null,
+    "fallback_used": false
+}
+{
+    "type": "llm_call",
+    "step": 75,
+    "battlefield": [
+        "OBJECTIVE: Locate and destroy the enemy Command Center.",
+        "You win when the enemy Command Center is destroyed.",
+        "You lose if all your combat units are eliminated.",
+        "",
+        "Time: 00:13 (step 75)",
+        "Supply: 5/0 | Army: 4",
+        "YOUR UNITS(4): Marauder 100%@(12,18); Marine 33%@(11,19); Marine 64%@(12,21); Marine 100%@(12,20)",
+        "ENEMY UNITS(13): Marauder 100%@(10,25); Marine 100%@(9,24); Marine 100%@(7,21); Marauder 100%@(9,22); Marine 100%@(6,22); Marauder 100%@(7,22); Marine 100%@(5,20); Marauder 100%@(7,25); Marine 20%@(7,23); Marine 100%@(6,20); Marine 100%@(7,23); Marine 100%@(12,24); Marine 100%@(10,23)",
+        "ENEMY STRUCTURES(1): CommandCenter 69%@(22,22)",
+        "",
+        "RECENT HISTORY (last 4 decisions):",
+        "[Step   15] YOUR UNITS 8 | ENEMY UNITS 14  \u2192  MOVE  \"Repositioning to a central location to better coordinate the attack on the Command Center.\"",
+        "[Step   30] YOUR UNITS 8 | ENEMY UNITS 14  \u2192  ATTACK  \"Directing the squad to attack the enemy Command Center to fulfill the objective.\"",
+        "[Step   45] YOUR UNITS 8 | ENEMY UNITS 14  \u2192  FOCUS_FIRE  \"The enemy Command Center is the primary objective and the lowest-health visible enemy, so focusing fire on it will ensure its destruction.\"",
+        "[Step   60] YOUR UNITS 8 | ENEMY UNITS 14  \u2192  ATTACK  \"The enemy Command Center is the primary objective and the lowest-health visible enemy, so directing the squad to attack it will ensure its destruction.\""
+    ],
+    "directive": "FOCUS_FIRE",
+    "reasoning": "The enemy Command Center is the primary objective and the lowest-health visible enemy, so focusing fire on it will ensure its destruction.",
+    "target_x": null,
+    "target_y": null,
+    "raw": "{\"directive\": \"FOCUS_FIRE\", \"reasoning\": \"The enemy Command Center is the primary objective and the lowest-health visible enemy, so focusing fire on it will ensure its destruction.\"}",
+    "llm_latency_ms": 1705,
+    "llm_error": null,
+    "fallback_used": false
+}
