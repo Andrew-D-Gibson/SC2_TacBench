@@ -1,0 +1,118 @@
+{
+    "type": "summary",
+    "outcome": "LOSS",
+    "total_steps": 92,
+    "total_llm_calls": 4,
+    "total_llm_failures": 0,
+    "config": {
+        "MODEL_NAME": "qwen3:8b",
+        "K_STEPS": 15,
+        "MAX_STEPS": 5000,
+        "LLM_TIMEOUT_S": 5.0,
+        "FALLBACK_DIRECTIVE": "HOLD_POSITION"
+    }
+}
+{
+    "type": "llm_call",
+    "step": 15,
+    "battlefield": [
+        "OBJECTIVE: Locate and destroy the enemy Command Center.",
+        "You win when the enemy Command Center is destroyed.",
+        "You lose if all your combat units are eliminated.",
+        "",
+        "Time: 00:02 (step 15)",
+        "Supply: 10/0 | Army: 8",
+        "YOUR UNITS(8): Marine 100%@(10,9); Marauder 100%@(9,10); Marine 100%@(9,7); Marine 100%@(8,9); Marine 100%@(7,7); Marauder 100%@(8,10); Marine 100%@(10,8); Marine 100%@(9,9)",
+        "ENEMY UNITS(14): Marine 100%@(5,23); Marauder 100%@(7,22); Marine 100%@(12,24); Marine 100%@(7,24); Marine 100%@(10,23); Marauder 100%@(7,25); Marine 100%@(5,22); Marauder 100%@(9,22); Marine 100%@(6,21); Marine 100%@(5,20); Marine 100%@(7,21); Marine 100%@(6,23); Marine 100%@(9,24); Marauder 100%@(10,25)",
+        "ENEMY STRUCTURES(1): CommandCenter 100%@(22,22)"
+    ],
+    "directive": "ATTACK",
+    "reasoning": "Directing units to attack the enemy Command Center to fulfill the objective.",
+    "target_x": 22.0,
+    "target_y": 22.0,
+    "raw": "{\"directive\": \"ATTACK\", \"target_x\": 22.0, \"target_y\": 22.0, \"reasoning\": \"Directing units to attack the enemy Command Center to fulfill the objective.\"}",
+    "llm_latency_ms": 3284,
+    "llm_error": null,
+    "fallback_used": false
+}
+{
+    "type": "llm_call",
+    "step": 45,
+    "battlefield": [
+        "OBJECTIVE: Locate and destroy the enemy Command Center.",
+        "You win when the enemy Command Center is destroyed.",
+        "You lose if all your combat units are eliminated.",
+        "",
+        "Time: 00:08 (step 45)",
+        "Supply: 10/0 | Army: 8",
+        "YOUR UNITS(8): Marine 100%@(11,12); Marauder 100%@(12,14); Marine 100%@(13,14); Marine 100%@(12,12); Marine 100%@(13,13); Marauder 100%@(13,14); Marine 100%@(12,13); Marine 100%@(12,13)",
+        "ENEMY UNITS(14): Marine 100%@(7,21); Marine 100%@(9,24); Marine 100%@(5,20); Marine 100%@(5,22); Marauder 100%@(7,22); Marine 100%@(10,23); Marauder 100%@(10,25); Marine 100%@(5,23); Marine 100%@(6,21); Marauder 100%@(9,22); Marine 100%@(6,23); Marine 100%@(12,24); Marine 100%@(7,24); Marauder 100%@(7,25)",
+        "ENEMY STRUCTURES(1): CommandCenter 100%@(22,22)",
+        "",
+        "RECENT HISTORY (last 1 decision):",
+        "[Step   15] YOUR UNITS 8 | ENEMY UNITS 14  \u2192  ATTACK  \"Directing units to attack the enemy Command Center to fulfill the objective.\""
+    ],
+    "directive": "ATTACK",
+    "reasoning": "Continuing the attack on the enemy Command Center to fulfill the objective.",
+    "target_x": 22.0,
+    "target_y": 22.0,
+    "raw": "{\"directive\": \"ATTACK\", \"target_x\": 22.0, \"target_y\": 22.0, \"reasoning\": \"Continuing the attack on the enemy Command Center to fulfill the objective.\"}",
+    "llm_latency_ms": 2591,
+    "llm_error": null,
+    "fallback_used": false
+}
+{
+    "type": "llm_call",
+    "step": 60,
+    "battlefield": [
+        "OBJECTIVE: Locate and destroy the enemy Command Center.",
+        "You win when the enemy Command Center is destroyed.",
+        "You lose if all your combat units are eliminated.",
+        "",
+        "Time: 00:10 (step 60)",
+        "Supply: 10/0 | Army: 8",
+        "YOUR UNITS(8): Marine 100%@(16,19); Marine 2%@(13,18); Marauder 100%@(14,17); Marine 100%@(15,19); Marine 100%@(16,18); Marine 86%@(12,17); Marine 100%@(13,16); Marauder 84%@(14,18)",
+        "ENEMY UNITS(14): Marine 42%@(11,23); Marine 100%@(6,22); Marauder 100%@(8,22); Marine 100%@(10,23); Marine 100%@(7,19); Marine 100%@(7,20); Marine 100%@(6,21); Marine 86%@(12,23); Marauder 100%@(9,23); Marauder 100%@(10,24); Marauder 92%@(9,22); Marine 100%@(8,21); Marine 100%@(7,20); Marine 100%@(7,22)",
+        "ENEMY STRUCTURES(1): CommandCenter 94%@(22,22)",
+        "",
+        "RECENT HISTORY (last 2 decisions):",
+        "[Step   15] YOUR UNITS 8 | ENEMY UNITS 14  \u2192  ATTACK  \"Directing units to attack the enemy Command Center to fulfill the objective.\"",
+        "[Step   45] YOUR UNITS 8 | ENEMY UNITS 14  \u2192  ATTACK  \"Continuing the attack on the enemy Command Center to fulfill the objective.\""
+    ],
+    "directive": "ATTACK",
+    "reasoning": "Continuing the attack on the enemy Command Center to fulfill the objective.",
+    "target_x": 22.0,
+    "target_y": 22.0,
+    "raw": "{\"directive\": \"ATTACK\", \"target_x\": 22.0, \"target_y\": 22.0, \"reasoning\": \"Continuing the attack on the enemy Command Center to fulfill the objective.\"}",
+    "llm_latency_ms": 2086,
+    "llm_error": null,
+    "fallback_used": false
+}
+{
+    "type": "llm_call",
+    "step": 75,
+    "battlefield": [
+        "OBJECTIVE: Locate and destroy the enemy Command Center.",
+        "You win when the enemy Command Center is destroyed.",
+        "You lose if all your combat units are eliminated.",
+        "",
+        "Time: 00:13 (step 75)",
+        "Supply: 6/0 | Army: 4",
+        "YOUR UNITS(4): Marauder 84%@(14,17); Marine 100%@(16,20); Marauder 12%@(14,18); Marine 100%@(15,19)",
+        "ENEMY UNITS(11): Marine 100%@(7,17); Marine 51%@(8,19); Marine 100%@(9,20); Marine 100%@(8,18); Marauder 100%@(11,24); Marauder 100%@(8,22); Marine 77%@(9,19); Marine 100%@(7,17); Marine 100%@(8,17); Marauder 100%@(10,23); Marauder 92%@(9,22)",
+        "ENEMY STRUCTURES(1): CommandCenter 94%@(22,22)",
+        "",
+        "RECENT HISTORY (last 3 decisions):",
+        "[Step   15] YOUR UNITS 8 | ENEMY UNITS 14  \u2192  ATTACK  \"Directing units to attack the enemy Command Center to fulfill the objective.\"",
+        "[Step   45] YOUR UNITS 8 | ENEMY UNITS 14  \u2192  ATTACK  \"Continuing the attack on the enemy Command Center to fulfill the objective.\"",
+        "[Step   60] YOUR UNITS 8 | ENEMY UNITS 14  \u2192  ATTACK  \"Continuing the attack on the enemy Command Center to fulfill the objective.\""
+    ],
+    "directive": "ATTACK",
+    "reasoning": "Continuing the attack on the enemy Command Center to fulfill the objective.",
+    "target_x": 22.0,
+    "target_y": 22.0,
+    "raw": "{\"directive\": \"ATTACK\", \"target_x\": 22.0, \"target_y\": 22.0, \"reasoning\": \"Continuing the attack on the enemy Command Center to fulfill the objective.\"}",
+    "llm_latency_ms": 2215,
+    "llm_error": null,
+    "fallback_used": false
+}

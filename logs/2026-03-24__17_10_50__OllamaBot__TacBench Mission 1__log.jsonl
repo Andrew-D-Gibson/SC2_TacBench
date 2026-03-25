@@ -1,0 +1,93 @@
+{
+    "type": "summary",
+    "outcome": "LOSS",
+    "total_steps": 101,
+    "total_llm_calls": 3,
+    "total_llm_failures": 0,
+    "config": {
+        "MODEL_NAME": "qwen3:8b",
+        "K_STEPS": 30,
+        "MAX_STEPS": 5000,
+        "LLM_TIMEOUT_S": 8.0,
+        "FALLBACK_DIRECTIVE": "HOLD_POSITION"
+    }
+}
+{
+    "type": "llm_call",
+    "step": 30,
+    "battlefield": [
+        "OBJECTIVE: Destroy the enemy Command Center.",
+        "Locate and eliminate the enemy Command Center.",
+        "You win when the enemy Command Center is destroyed.",
+        "You lose if all your combat units are eliminated.",
+        "",
+        "Time: 00:05 (step 30)",
+        "Supply: 10/0 | Army: 8",
+        "YOUR UNITS(8): Marine 100%@(9,7); Marine 100%@(9,9); Marauder 100%@(9,10); Marauder 100%@(8,10); Marine 100%@(7,7); Marine 100%@(8,9); Marine 100%@(10,8); Marine 100%@(10,9)",
+        "ENEMY UNITS(14): Marine 100%@(6,23); Marine 100%@(5,20); Marine 100%@(12,24); Marauder 100%@(7,22); Marine 100%@(9,24); Marine 100%@(5,22); Marine 100%@(7,24); Marine 100%@(5,23); Marauder 100%@(9,22); Marine 100%@(10,23); Marine 100%@(6,21); Marauder 100%@(10,25); Marine 100%@(7,21); Marauder 100%@(7,25)",
+        "ENEMY STRUCTURES(1): CommandCenter 100%@(22,22)"
+    ],
+    "directive": "ATTACK",
+    "reasoning": "Directly attack the enemy Command Center to fulfill the objective efficiently.",
+    "target_x": 22.0,
+    "target_y": 22.0,
+    "raw": "{\"directive\": \"ATTACK\", \"target_x\": 22.0, \"target_y\": 22.0, \"reasoning\": \"Directly attack the enemy Command Center to fulfill the objective efficiently.\"}",
+    "llm_latency_ms": 3206,
+    "llm_error": null,
+    "fallback_used": false
+}
+{
+    "type": "llm_call",
+    "step": 60,
+    "battlefield": [
+        "OBJECTIVE: Destroy the enemy Command Center.",
+        "Locate and eliminate the enemy Command Center.",
+        "You win when the enemy Command Center is destroyed.",
+        "You lose if all your combat units are eliminated.",
+        "",
+        "Time: 00:10 (step 60)",
+        "Supply: 10/0 | Army: 8",
+        "YOUR UNITS(8): Marine 100%@(13,14); Marauder 100%@(12,15); Marine 100%@(11,13); Marine 100%@(12,13); Marauder 100%@(13,15); Marine 100%@(12,14); Marine 100%@(14,14); Marine 100%@(13,13)",
+        "ENEMY UNITS(14): Marauder 100%@(7,25); Marauder 100%@(7,22); Marine 100%@(6,23); Marine 100%@(5,23); Marine 100%@(7,21); Marine 100%@(5,20); Marauder 100%@(10,25); Marine 100%@(7,24); Marine 100%@(10,23); Marine 100%@(5,22); Marine 100%@(12,24); Marine 100%@(6,21); Marine 100%@(9,24); Marauder 100%@(9,22)",
+        "ENEMY STRUCTURES(1): CommandCenter 100%@(22,22)",
+        "",
+        "RECENT HISTORY (last 1 decision):",
+        "[Step   30] YOUR UNITS 8 | ENEMY UNITS 14  \u2192  ATTACK  \"Directly attack the enemy Command Center to fulfill the objective efficiently.\""
+    ],
+    "directive": "FOCUS_FIRE",
+    "reasoning": "The enemy Command Center is the primary objective and is the highest-value target to destroy first.",
+    "target_x": null,
+    "target_y": null,
+    "raw": "{\"directive\": \"FOCUS_FIRE\", \"reasoning\": \"The enemy Command Center is the primary objective and is the highest-value target to destroy first.\"}",
+    "llm_latency_ms": 1703,
+    "llm_error": null,
+    "fallback_used": false
+}
+{
+    "type": "llm_call",
+    "step": 90,
+    "battlefield": [
+        "OBJECTIVE: Destroy the enemy Command Center.",
+        "Locate and eliminate the enemy Command Center.",
+        "You win when the enemy Command Center is destroyed.",
+        "You lose if all your combat units are eliminated.",
+        "",
+        "Time: 00:16 (step 90)",
+        "Supply: 4/0 | Army: 3",
+        "YOUR UNITS(3): Marauder 100%@(14,17); Marine 60%@(13,19); Marine 2%@(13,18)",
+        "ENEMY UNITS(11): Marauder 84%@(9,22); Marine 46%@(8,18); Marauder 100%@(11,24); Marauder 100%@(8,21); Marine 100%@(12,22); Marine 100%@(8,18); Marine 100%@(7,17); Marine 100%@(9,20); Marine 100%@(8,19); Marine 100%@(9,21); Marauder 100%@(11,23)",
+        "ENEMY STRUCTURES(1): CommandCenter 94%@(22,22)",
+        "",
+        "RECENT HISTORY (last 2 decisions):",
+        "[Step   30] YOUR UNITS 8 | ENEMY UNITS 14  \u2192  ATTACK  \"Directly attack the enemy Command Center to fulfill the objective efficiently.\"",
+        "[Step   60] YOUR UNITS 8 | ENEMY UNITS 14  \u2192  FOCUS_FIRE  \"The enemy Command Center is the primary objective and is the highest-value target to destroy first.\""
+    ],
+    "directive": "FOCUS_FIRE",
+    "reasoning": "The enemy Command Center is the highest-value target and should be prioritized to fulfill the objective efficiently.",
+    "target_x": null,
+    "target_y": null,
+    "raw": "{\"directive\": \"FOCUS_FIRE\", \"reasoning\": \"The enemy Command Center is the highest-value target and should be prioritized to fulfill the objective efficiently.\"}",
+    "llm_latency_ms": 1530,
+    "llm_error": null,
+    "fallback_used": false
+}

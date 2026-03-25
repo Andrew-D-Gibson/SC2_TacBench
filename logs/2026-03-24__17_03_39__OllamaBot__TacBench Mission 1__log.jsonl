@@ -1,0 +1,96 @@
+{
+    "type": "summary",
+    "outcome": "WIN",
+    "total_steps": 113,
+    "total_llm_calls": 3,
+    "total_llm_failures": 0,
+    "config": {
+        "K_STEPS": 30,
+        "MAX_STEPS": 5000,
+        "LLM_TIMEOUT_S": 8.0,
+        "FALLBACK_DIRECTIVE": "HOLD_POSITION"
+    }
+}
+{
+    "type": "llm_call",
+    "step": 30,
+    "battlefield": [
+        "OBJECTIVE: Destroy the enemy Command Center.",
+        "Locate and eliminate the enemy Command Center.",
+        "You win when the enemy Command Center is destroyed.",
+        "You lose if all your combat units are eliminated.",
+        "",
+        "Time: 00:05 (step 30)",
+        "Supply: 10/0 | Army: 8",
+        "YOUR UNITS(8): Marine 100%@(10,9); Marine 100%@(9,7); Marauder 100%@(8,10); Marine 100%@(8,9); Marauder 100%@(9,10); Marine 100%@(10,8); Marine 100%@(7,7); Marine 100%@(9,9)",
+        "ENEMY UNITS(14): Marine 100%@(5,20); Marine 100%@(5,23); Marine 100%@(7,24); Marine 100%@(7,21); Marine 100%@(9,24); Marauder 100%@(7,22); Marine 100%@(12,24); Marine 100%@(6,23); Marauder 100%@(9,22); Marine 100%@(5,22); Marine 100%@(6,21); Marauder 100%@(7,25); Marauder 100%@(10,25); Marine 100%@(10,23)",
+        "ENEMY STRUCTURES(1): CommandCenter 100%@(22,22)"
+    ],
+    "directive": "MOVE",
+    "reasoning": "Repositioning units to the right and upwards to avoid enemy forces and approach the Command Center.",
+    "target_x": 14.0,
+    "target_y": 14.0,
+    "raw": "{\"directive\": \"MOVE\", \"target_x\": 14.0, \"target_y\": 14.0, \"reasoning\": \"Repositioning units to the right and upwards to avoid enemy forces and approach the Command Center.\"}",
+    "llm_latency_ms": 2421,
+    "llm_error": null,
+    "fallback_used": false
+}
+{
+    "type": "llm_call",
+    "step": 60,
+    "battlefield": [
+        "OBJECTIVE: Destroy the enemy Command Center.",
+        "Locate and eliminate the enemy Command Center.",
+        "You win when the enemy Command Center is destroyed.",
+        "The map is a roughly 20x20 square, with enemy forces in the top left and the Command Center in the top right.",
+        "Avoid enemy forces if you can by first moving your forces right, then upwards towards the Command Center.",
+        "You lose if all your combat units are eliminated.",
+        "",
+        "Time: 00:10 (step 60)",
+        "Supply: 10/0 | Army: 8",
+        "YOUR UNITS(8): Marine 100%@(13,14); Marine 100%@(14,14); Marine 100%@(14,14); Marauder 100%@(14,15); Marauder 100%@(15,15); Marine 100%@(13,13); Marine 100%@(15,14); Marine 100%@(15,13)",
+        "ENEMY UNITS(14): Marine 100%@(12,24); Marine 100%@(10,23); Marine 100%@(5,20); Marine 100%@(5,23); Marine 100%@(7,21); Marine 100%@(6,21); Marauder 100%@(9,22); Marine 100%@(5,22); Marauder 100%@(10,25); Marauder 100%@(7,22); Marine 100%@(7,24); Marauder 100%@(7,25); Marine 100%@(6,23); Marine 100%@(9,24)",
+        "ENEMY STRUCTURES(1): CommandCenter 100%@(22,22)",
+        "",
+        "RECENT HISTORY (last 1 decision):",
+        "[Step   30] YOUR UNITS 8 | ENEMY UNITS 14  \u2192  MOVE  \"Repositioning units to the right and upwards to avoid enemy forces and approach the Command Center.\""
+    ],
+    "directive": "MOVE",
+    "reasoning": "Repositioning units to the right and upwards to avoid enemy forces and approach the Command Center.",
+    "target_x": 18.0,
+    "target_y": 18.0,
+    "raw": "{\"directive\": \"MOVE\", \"target_x\": 18.0, \"target_y\": 18.0, \"reasoning\": \"Repositioning units to the right and upwards to avoid enemy forces and approach the Command Center.\"}",
+    "llm_latency_ms": 2047,
+    "llm_error": null,
+    "fallback_used": false
+}
+{
+    "type": "llm_call",
+    "step": 90,
+    "battlefield": [
+        "OBJECTIVE: Destroy the enemy Command Center.",
+        "Locate and eliminate the enemy Command Center.",
+        "You win when the enemy Command Center is destroyed.",
+        "The map is a roughly 20x20 square, with enemy forces in the top left and the Command Center in the top right.",
+        "Avoid enemy forces if you can by first moving your forces right, then upwards towards the Command Center.",
+        "You lose if all your combat units are eliminated.",
+        "",
+        "Time: 00:16 (step 90)",
+        "Supply: 10/0 | Army: 8",
+        "YOUR UNITS(8): Marine 100%@(17,18); Marine 100%@(18,18); Marine 100%@(19,18); Marauder 100%@(18,19); Marine 100%@(17,17); Marine 100%@(18,18); Marine 100%@(18,17); Marauder 100%@(17,19)",
+        "ENEMY UNITS(14): Marine 100%@(6,21); Marauder 100%@(10,25); Marine 100%@(5,22); Marauder 100%@(7,25); Marauder 100%@(7,22); Marine 100%@(5,20); Marine 100%@(12,24); Marine 100%@(6,23); Marine 100%@(5,23); Marine 100%@(7,24); Marine 100%@(10,23); Marine 100%@(9,24); Marauder 100%@(9,22); Marine 100%@(7,21)",
+        "ENEMY STRUCTURES(1): CommandCenter 71%@(22,22)",
+        "",
+        "RECENT HISTORY (last 2 decisions):",
+        "[Step   30] YOUR UNITS 8 | ENEMY UNITS 14  \u2192  MOVE  \"Repositioning units to the right and upwards to avoid enemy forces and approach the Command Center.\"",
+        "[Step   60] YOUR UNITS 8 | ENEMY UNITS 14  \u2192  MOVE  \"Repositioning units to the right and upwards to avoid enemy forces and approach the Command Center.\""
+    ],
+    "directive": "ATTACK",
+    "reasoning": "Advancing towards the Command Center to engage and destroy it while minimizing exposure to enemy forces.",
+    "target_x": 20.0,
+    "target_y": 20.0,
+    "raw": "{\"directive\": \"ATTACK\", \"target_x\": 20.0, \"target_y\": 20.0, \"reasoning\": \"Advancing towards the Command Center to engage and destroy it while minimizing exposure to enemy forces.\"}",
+    "llm_latency_ms": 2346,
+    "llm_error": null,
+    "fallback_used": false
+}
