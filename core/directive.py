@@ -85,7 +85,7 @@ def _normalize_from_dict(raw: dict, allowed_set: set, fallback: str) -> Directiv
 
     return Directive(
         name=name,
-        reasoning=reasoning or "",
+        reasoning=reasoning,
         target_x=target_x,
         target_y=target_y,
         raw=raw,

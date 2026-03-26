@@ -2,6 +2,7 @@ from BaseSC2Bot import BaseSC2Bot
 from FairlibBot import FairlibBot
 from OllamaBot import OllamaBot
 from settings import get_settings
+import console
 
 from sc2 import maps
 from sc2.data import Difficulty, Race
@@ -19,40 +20,33 @@ import asyncio
 _SC2_LOOP_OVERFLOW = "4294967296"
 
 
+def _resolve_enum(value: str, enum_cls, field_name: str):
+    """
+    Look up a named member on an enum class.
+    Raises a clear ValueError (instead of a cryptic AttributeError) if the
+    name isn't found, listing all valid options.
+    """
+    try:
+        return getattr(enum_cls, value)
+    except AttributeError:
+        valid = [m.name for m in enum_cls if m.name not in ("Norace", "Random")]
+        raise ValueError(
+            f"Invalid {field_name} '{value}' in settings. "
+            f"Valid options: {', '.join(valid)}"
+        )
+
+
 if __name__ == "__main__":
+    console.init()
     settings = get_settings()
 
-    # Validate race and difficulty settings early so misconfigured .env files
-    # produce a clear error message instead of a cryptic AttributeError.
-    try:
-        player_race = getattr(Race, settings.player_race)
-    except AttributeError:
-        valid = [r.name for r in Race if r.name not in ("Norace", "Random")]
-        raise ValueError(
-            f"Invalid player_race '{settings.player_race}' in settings. "
-            f"Valid options: {', '.join(valid)}"
-        )
-
-    try:
-        opponent_race = getattr(Race, settings.opponent_race)
-    except AttributeError:
-        valid = [r.name for r in Race if r.name not in ("Norace", "Random")]
-        raise ValueError(
-            f"Invalid opponent_race '{settings.opponent_race}' in settings. "
-            f"Valid options: {', '.join(valid)}"
-        )
-
-    try:
-        opponent_difficulty = getattr(Difficulty, settings.opponent_difficulty)
-    except AttributeError:
-        valid = [d.name for d in Difficulty]
-        raise ValueError(
-            f"Invalid opponent_difficulty '{settings.opponent_difficulty}' in settings. "
-            f"Valid options: {', '.join(valid)}"
-        )
+    player_race       = _resolve_enum(settings.player_race,       Race,       "player_race")
+    opponent_race     = _resolve_enum(settings.opponent_race,      Race,       "opponent_race")
+    opponent_difficulty = _resolve_enum(settings.opponent_difficulty, Difficulty, "opponent_difficulty")
 
     bot = OllamaBot()
-    result = asyncio.run(bot.warmup())
+    console.print_startup_banner(bot.name, settings.model_name)
+    asyncio.run(bot.warmup())
 
     try:
         run_game(
@@ -65,6 +59,6 @@ if __name__ == "__main__":
         )
     except ValueError as e:
         if _SC2_LOOP_OVERFLOW in str(e) or "out of range" in str(e).lower():
-            print("[TacBench] Game ended (loop counter overflow - normal for custom maps).")
+            console.warn("Game ended (loop counter overflow — normal for custom maps).")
         else:
             raise

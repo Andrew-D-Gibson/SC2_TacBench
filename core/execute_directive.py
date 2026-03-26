@@ -3,6 +3,7 @@ from sc2.ids.unit_typeid import UnitTypeId
 from sc2.position import Point2
 
 from directive import Directive
+import console
 
 
 # --- Directive handler functions ---
@@ -14,7 +15,7 @@ from directive import Directive
 def move(bot: BotAI, army, enemies, directive: Directive):
     """Move all army units to the target position (target_x, target_y required)."""
     if directive.target_x is None or directive.target_y is None:
-        print("[TacBench] MOVE directive is missing target_x/target_y — no action taken.")
+        console.warn("MOVE directive is missing target_x/target_y — no action taken.")
         return
     target = Point2((directive.target_x, directive.target_y))
     for unit in army:
@@ -24,7 +25,7 @@ def move(bot: BotAI, army, enemies, directive: Directive):
 def attack(bot: BotAI, army, enemies, directive: Directive):
     """Attack-move all army units toward the target position (target_x, target_y required)."""
     if directive.target_x is None or directive.target_y is None:
-        print("[TacBench] ATTACK directive is missing target_x/target_y — no action taken.")
+        console.warn("ATTACK directive is missing target_x/target_y — no action taken.")
         return
     target = Point2((directive.target_x, directive.target_y))
     for unit in army:
@@ -37,13 +38,6 @@ def focus_fire(bot: BotAI, army, enemies, directive: Directive):
         weakest = min(enemies, key=lambda u: u.health)
         for unit in army:
             unit.attack(weakest)
-
-
-# def retreat(bot: BotAI, army, enemies, directive: Directive):
-#     """Pull all army units back to the starting location."""
-#     rally = bot.start_location
-#     for unit in army:
-#         unit.move(rally)
 
 
 def hold_position(bot: BotAI, army, enemies, directive: Directive):
@@ -141,9 +135,7 @@ async def execute_directive(bot: BotAI, directive, fallback: str = "HOLD_POSITIO
     # Directive not found — warn and attempt the fallback.
     fallback_handler = DIRECTIVE_REGISTRY.get(fallback)
     if fallback_handler is not None:
-        print(f"[TacBench] WARNING: directive '{directive_name}' not in registry — "
-              f"falling back to '{fallback}'.")
+        console.warn(f"directive '{directive_name}' not in registry — falling back to '{fallback}'.")
         fallback_handler(bot, army, enemies, directive)
     else:
-        print(f"[TacBench] WARNING: directive '{directive_name}' not in registry and "
-              f"fallback '{fallback}' is also not registered. No action taken.")
+        console.warn(f"directive '{directive_name}' not in registry and fallback '{fallback}' is also not registered. No action taken.")

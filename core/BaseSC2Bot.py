@@ -3,6 +3,7 @@ from execute_directive import execute_directive, get_directive_registry
 from directive import Directive, normalize_directive
 from settings import get_settings
 from map_loader import load_map_scenario
+import console
 
 from sc2.bot_ai import BotAI
 from sc2.data import Result
@@ -56,7 +57,7 @@ class BaseSC2Bot(BotAI):
 
     # --- Overridable hooks (subclasses should focus here) ---
 
-    def get_new_directive(self, current_battlefield_obs: str):
+    def get_new_directive(self, current_battlefield_obs: str, step: int = 0):
         """
         Sync directive generator. Override in subclasses if you prefer a sync API.
         Should return a dict with at least a 'directive' key, e.g.:
@@ -72,11 +73,11 @@ class BaseSC2Bot(BotAI):
         }
 
 
-    async def get_new_directive_async(self, current_battlefield_obs: str):
+    async def get_new_directive_async(self, current_battlefield_obs: str, step: int = 0):
         """
         Async directive generator. Override this in subclasses that call an async LLM.
         """
-        return self.get_new_directive(current_battlefield_obs)
+        return self.get_new_directive(current_battlefield_obs, step=step)
 
 
     # --- BotAI lifecycle methods ---
@@ -86,10 +87,7 @@ class BaseSC2Bot(BotAI):
         Called once at the beginning of a game.
         Loads the map scenario file matching the current map name.
         """
-        print(f"\n[TacBench] Game started with bot {self.name}")
-        print(f"[TacBench] Map: {self.game_info.map_name}")
-        print(f"[TacBench] My race: {self.race}")
-        print(f"[TacBench] Start location: {self.start_location}\n")
+        console.print_game_start(self.game_info.map_name, self.race) #self.start_location
 
         settings = get_settings()
         self._map_scenario = load_map_scenario(settings.map)
@@ -109,7 +107,7 @@ class BaseSC2Bot(BotAI):
 
         # Auto-end the scenario if we've reached the maximum allowed time.
         if self.step_count >= self.MAX_STEPS:
-            print("[TacBench] Step limit reached - ending episode.")
+            console.warn("Step limit reached — ending episode.")
             self._write_episode_log("TIMEOUT")
             await self.client.leave()
             return
@@ -119,13 +117,13 @@ class BaseSC2Bot(BotAI):
             self._map_scenario.on_step(self)
 
             if self._map_scenario.check_win(self):
-                print("[TacBench] Win condition met - ending episode.")
+                console.warn("Win condition met — ending episode.")
                 self._write_episode_log("WIN")
                 await self.client.leave()
                 return
 
             if self._map_scenario.check_loss(self):
-                print("[TacBench] Loss condition met - ending episode.")
+                console.warn("Loss condition met — ending episode.")
                 self._write_episode_log("LOSS")
                 await self.client.leave()
                 return
@@ -161,9 +159,7 @@ class BaseSC2Bot(BotAI):
                   "LOSS" if game_result == Result.Defeat else \
                   "TIE"
 
-        print(f"\n[TacBench] Game over - {outcome}")
-        print(f"[TacBench] Total steps: {self.step_count}")
-        print(f"[TacBench] Total LLM calls: {len(self.episode_log)}")
+        console.print_game_over(outcome, self.step_count, len(self.episode_log))
         self._write_episode_log(outcome)
 
 
@@ -202,7 +198,7 @@ class BaseSC2Bot(BotAI):
                 f.write(json.dumps(entry, indent=4) + "\n")
 
         self._episode_log_written = True
-        print(f"[TacBench] Log saved to: {log_path.resolve()}")
+        console.print_log_saved(str(log_path.resolve()))
 
 
     def _build_history_section(self, length: int) -> str:
@@ -303,12 +299,13 @@ class BaseSC2Bot(BotAI):
             "fallback_used": directive.fallback_used,
         })
 
-        print(f"[Step {result['step']:>5}] Directive: {directive.name}")
-        if directive.reasoning:
-            print(f"           Reasoning: {directive.reasoning}")
-        if directive.error:
-            print(f"           LLM error: {directive.error}")
-        print(f"           Friendly: {len(self.units)} | Enemy visible: {len(self.enemy_units.visible)}\n")
+        console.print_directive(
+            step=result["step"],
+            directive=directive,
+            friendly=len(self.units),
+            enemy=len(self.enemy_units.visible),
+            latency_ms=result["latency_ms"],
+        )
 
 
     async def _run_llm_call(self, step: int, battlefield: str) -> dict:
@@ -322,7 +319,7 @@ class BaseSC2Bot(BotAI):
         error = None
         raw = None
         try:
-            raw = await self.get_new_directive_async(battlefield)
+            raw = await self.get_new_directive_async(battlefield, step=step)
         except Exception as exc:
             error = f"{type(exc).__name__}: {exc}"
         latency_ms = int((time.perf_counter() - start) * 1000)

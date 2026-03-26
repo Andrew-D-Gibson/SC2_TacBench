@@ -1,4 +1,7 @@
+from pathlib import Path
+
 from BaseSC2Bot import BaseSC2Bot
+import console
 
 from fairlib import (
     OllamaAdapter,
@@ -11,10 +14,8 @@ from fairlib import (
 
 OLLAMA_HOST = "http://localhost:11434"
 
-DIRECTIVE_PROMPT = (
-    'You are a StarCraft 2 tactical AI. Respond with ONLY a JSON object, no other text:\n'
-    '{"directive": "FOCUS_FIRE", "reasoning": "[FairlibBot] Focus fire on the weakest enemy unit."}'
-)
+_PROMPT_PATH = Path(__file__).parent.parent / "prompt.txt"
+_SYSTEM_PROMPT = _PROMPT_PATH.read_text(encoding="utf-8")
 
 
 class FairlibBot(BaseSC2Bot):
@@ -44,5 +45,7 @@ class FairlibBot(BaseSC2Bot):
             stateless=True,
         )
 
-    async def get_new_directive_async(self, current_battlefield_obs: str) -> str:
-        return await self._agent.arun(DIRECTIVE_PROMPT)
+    async def get_new_directive_async(self, current_battlefield_obs: str, step: int = 0) -> str:
+        full_prompt = _SYSTEM_PROMPT + current_battlefield_obs
+        console.print_llm_prompt(step, self.MODEL_NAME, full_prompt)
+        return await self._agent.arun(full_prompt)

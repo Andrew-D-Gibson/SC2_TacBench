@@ -1,5 +1,4 @@
 from sc2.bot_ai import BotAI
-from sc2.ids.unit_typeid import UnitTypeId
 
 from settings import get_settings
 from terrain_encoder import terrain_encoder

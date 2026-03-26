@@ -17,6 +17,7 @@ def terrain_encoder(
 		downsample_factor: int (e.g., 2, 4, 8)
 		include_legend: include symbol legend
 		include_summary: include basic map summary
+		include_axes: include y-labels on the left and an x-coordinate ruler at the bottom
 
 	Returns:
 		str: formatted terrain representation
