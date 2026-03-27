@@ -12,6 +12,8 @@ class Directive:
     reasoning: str = ""
     target_x: Optional[float] = None
     target_y: Optional[float] = None
+    units: Optional[list] = None          # cluster labels ("A","B") or unit IDs (1,5,12)
+    target_unit: Optional[int] = None     # enemy unit ID for FOCUS_FIRE
     raw: Any = None
     error: Optional[str] = None
     fallback_used: bool = False
@@ -77,6 +79,26 @@ def _normalize_from_dict(raw: dict, allowed_set: set, fallback: str) -> Directiv
         target_x = None
         target_y = None
 
+    # Parse optional units list — strings uppercased, numbers coerced to int.
+    units = None
+    raw_units = raw.get("units")
+    if isinstance(raw_units, list) and raw_units:
+        units = []
+        for item in raw_units:
+            if isinstance(item, str):
+                units.append(item.upper())
+            elif isinstance(item, (int, float)):
+                units.append(int(item))
+
+    # Parse optional target_unit (enemy unit ID for FOCUS_FIRE).
+    target_unit = None
+    raw_tu = raw.get("target_unit")
+    if raw_tu is not None:
+        try:
+            target_unit = int(raw_tu)
+        except (ValueError, TypeError):
+            pass
+
     if not isinstance(name, str):
         return _make_fallback(raw, fallback, "missing directive name")
 
@@ -88,6 +110,8 @@ def _normalize_from_dict(raw: dict, allowed_set: set, fallback: str) -> Directiv
         reasoning=reasoning,
         target_x=target_x,
         target_y=target_y,
+        units=units,
+        target_unit=target_unit,
         raw=raw,
     )
 

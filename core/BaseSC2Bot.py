@@ -164,7 +164,9 @@ class BaseSC2Bot(BotAI):
                 return
 
         # Update cluster state (velocity tracking) more often than LLM calls.
-        if self.step_count % self.CLUSTER_TRACK_INTERVAL == 0:
+        # Also update on LLM call steps to guarantee clusters are populated
+        # before the first prompt (handles K_STEPS < cluster_track_interval).
+        if self.step_count % self.CLUSTER_TRACK_INTERVAL == 0 or self.step_count % self.K_STEPS == 0:
             cfg = get_settings()
             self._cluster_state = self._cluster_tracker.update(
                 self, self.step_count, cfg.cluster_radius
@@ -338,6 +340,8 @@ class BaseSC2Bot(BotAI):
             "reasoning": directive.reasoning,
             "target_x": directive.target_x,
             "target_y": directive.target_y,
+            "units": directive.units,
+            "target_unit": directive.target_unit,
             "raw": result["raw"],
             "llm_latency_ms": result["latency_ms"],
             "llm_error": directive.error,

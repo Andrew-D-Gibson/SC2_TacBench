@@ -22,10 +22,7 @@ from dataclasses import dataclass, field
 from typing import List
 
 from sc2.bot_ai import BotAI
-from sc2.ids.unit_typeid import UnitTypeId
 from sc2.position import Point2
-
-_ARMY_TYPES = [UnitTypeId.MARINE, UnitTypeId.MARAUDER]
 
 # ── Force ratio labels ─────────────────────────────────────────────────────────
 
@@ -112,7 +109,7 @@ def compute_threat(fc: UnitCluster, ec: UnitCluster, distance: float) -> str:
         level = 4   # CONTACT — in range right now
     elif distance <= enemy_range * 2.0:
         level = 3   # THREAT  — will be in range very soon
-    elif distance <= enemy_range * 4.5:
+    elif distance <= enemy_range * 3:
         level = 2   # NEARBY  — visible, monitor
     else:
         level = 1   # DISTANT — far away
@@ -267,7 +264,7 @@ def _build_clusters_raw(
       Enemy:    1, 2, 3… across both ground and air, sorted by distance to
                 nearest friendly cluster
     """
-    all_friendly = list(bot.units.of_type(_ARMY_TYPES))
+    all_friendly = list(bot.units)
     all_enemy    = list(bot.enemy_units.visible)
 
     fg_units = [u for u in all_friendly if not u.is_flying]

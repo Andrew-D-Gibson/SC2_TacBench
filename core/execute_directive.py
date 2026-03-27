@@ -1,14 +1,52 @@
 from sc2.bot_ai import BotAI
-from sc2.ids.unit_typeid import UnitTypeId
 from sc2.position import Point2
 
 from directive import Directive
 import console
 
 
+# --- Army resolver ---
+
+
+def _resolve_army(bot: BotAI, all_army, directive: Directive):
+    """
+    Resolve directive.units (cluster labels like "A","B" or unit IDs like 1,5,12)
+    to a filtered friendly army collection.  Falls back to all_army if:
+      - directive.units is None / empty
+      - no requested labels/IDs match any current unit
+    """
+    if not directive.units:
+        return all_army
+
+    fg, fa, eg, ea = getattr(bot, "_cluster_state", ([], [], [], []))
+    cluster_map = {c.label: c for c in fg + fa}
+
+    # Build reverse ID map: short_id -> tag (from all known friendly units)
+    id_to_tag = {v: k for k, v in bot._unit_id_map.items()}
+
+    wanted_tags: set = set()
+    for item in directive.units:
+        if isinstance(item, str):
+            cluster = cluster_map.get(item)
+            if cluster:
+                for u in cluster.units:
+                    wanted_tags.add(u.tag)
+        elif isinstance(item, int):
+            tag = id_to_tag.get(item)
+            if tag is not None:
+                wanted_tags.add(tag)
+
+    if not wanted_tags:
+        return all_army
+
+    filtered = all_army.filter(lambda u: u.tag in wanted_tags)
+    return filtered if filtered else all_army
+
+
 # --- Directive handler functions ---
 # Each handler takes (bot, army, enemies, directive).
-# 'army'     — filtered Units collection (Marines + Marauders)
+# 'army'     — filtered Units collection, already resolved
+#              from directive.units if provided
 # 'enemies'  — currently visible enemy units
 # 'directive'— the full Directive object, including optional target_x/target_y
 
@@ -33,11 +71,19 @@ def attack(bot: BotAI, army, enemies, directive: Directive):
 
 
 def focus_fire(bot: BotAI, army, enemies, directive: Directive):
-    """Focus all army units on the lowest-health visible enemy."""
-    if enemies:
-        weakest = min(enemies, key=lambda u: u.health)
-        for unit in army:
-            unit.attack(weakest)
+    """Focus army units on a specific enemy (by target_unit ID) or the lowest-health visible enemy."""
+    if not enemies:
+        return
+    target = None
+    if directive.target_unit is not None:
+        id_to_tag = {v: k for k, v in bot._unit_id_map.items()}
+        tag = id_to_tag.get(directive.target_unit)
+        if tag is not None:
+            target = enemies.find_by_tag(tag)
+    if target is None:
+        target = min(enemies, key=lambda u: u.health)
+    for unit in army:
+        unit.attack(target)
 
 
 def hold_position(bot: BotAI, army, enemies, directive: Directive):
@@ -146,12 +192,9 @@ async def execute_directive(bot: BotAI, directive, fallback: str = "HOLD_POSITIO
     Returns an optional str: if a handler returns a directive name (e.g. SPREAD
     returning 'HOLD_POSITION'), the caller should switch to that directive.
     """
-    army = bot.units.of_type([
-        UnitTypeId.MARINE,
-        UnitTypeId.MARAUDER,
-    ])
+    all_army = bot.units
 
-    if not army:
+    if not all_army:
         return None
 
     enemies = bot.enemy_units.visible
@@ -162,6 +205,8 @@ async def execute_directive(bot: BotAI, directive, fallback: str = "HOLD_POSITIO
     else:
         directive_name = str(directive)
         directive = Directive(name=directive_name)
+
+    army = _resolve_army(bot, all_army, directive)
 
     handler = DIRECTIVE_REGISTRY.get(directive_name)
     if handler is not None:

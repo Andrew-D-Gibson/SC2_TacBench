@@ -21,11 +21,12 @@ def _fmt_friendly_unit(unit, bot) -> str:
 
 
 def _fmt_enemy_unit(unit, bot) -> str:
-    """Enemy unit: HP% and delta (no persistent ID needed yet)."""
+    """Enemy unit: persistent ID, HP% and delta."""
+    uid       = bot.get_unit_id(unit)
     hp_pct    = int(100 * unit.health / max(unit.health_max, 1))
     delta     = bot.get_hp_delta(unit)
     delta_str = f"({delta:+d}%)" if delta is not None and delta != 0 else ""
-    return f"{unit.name} {hp_pct}%HP{delta_str} @ ({unit.position.x:.0f},{unit.position.y:.0f})"
+    return f"{unit.name} #{uid} {hp_pct}%HP{delta_str} @ ({unit.position.x:.0f},{unit.position.y:.0f})"
 
 
 def _fmt_units(units, label: str, bot, friendly: bool, cap: int = 64) -> str:
