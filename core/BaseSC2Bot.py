@@ -3,6 +3,7 @@ from execute_directive import execute_directive, get_directive_registry
 from directive import Directive, normalize_directive
 from settings import get_settings
 from map_loader import load_map_scenario
+from clustering import ClusterTracker
 import console
 
 from sc2.bot_ai import BotAI
@@ -43,6 +44,18 @@ class BaseSC2Bot(BotAI):
         # Initialise to fallback directive until the first LLM call completes.
         self.current_directive = Directive(name=self.FALLBACK_DIRECTIVE, reasoning="startup default")
 
+        # Cluster tracking — updated every cluster_track_interval game steps.
+        # Stores (friendly_ground, friendly_air, enemy_ground, enemy_air).
+        self._cluster_tracker = ClusterTracker()
+        self._cluster_state: tuple = ([], [], [], [])
+
+        # Persistent unit identifiers: tag → short sequential ID (for LLM targeting).
+        self._unit_id_map: dict[int, int] = {}
+        self._next_unit_id: int = 1
+
+        # HP history for delta reporting: tag → HP% at last LLM observation.
+        self._unit_hp_history: dict[int, int] = {}
+
 
     def _apply_settings(self):
         """
@@ -53,6 +66,28 @@ class BaseSC2Bot(BotAI):
         self.MAX_STEPS = settings.max_steps
         self.FALLBACK_DIRECTIVE = settings.fallback_directive
         self.MODEL_NAME = settings.model_name
+        self.CLUSTER_TRACK_INTERVAL = settings.cluster_track_interval
+
+    # --- Unit ID and HP delta helpers (used by obs_raw_text) ---
+
+    def get_unit_id(self, unit) -> int:
+        """Return a persistent short integer ID for a unit, assigning one if new."""
+        if unit.tag not in self._unit_id_map:
+            self._unit_id_map[unit.tag] = self._next_unit_id
+            self._next_unit_id += 1
+        return self._unit_id_map[unit.tag]
+
+    def get_hp_delta(self, unit) -> int | None:
+        """
+        Return the HP% change since the last time this unit was observed.
+        Updates the stored HP% as a side effect — call once per unit per LLM step.
+        Returns None on the unit's first appearance.
+        """
+        tag = unit.tag
+        current = int(100 * unit.health / max(unit.health_max, 1))
+        delta = current - self._unit_hp_history[tag] if tag in self._unit_hp_history else None
+        self._unit_hp_history[tag] = current
+        return delta
 
 
     # --- Overridable hooks (subclasses should focus here) ---
@@ -127,6 +162,13 @@ class BaseSC2Bot(BotAI):
                 self._write_episode_log("LOSS")
                 await self.client.leave()
                 return
+
+        # Update cluster state (velocity tracking) more often than LLM calls.
+        if self.step_count % self.CLUSTER_TRACK_INTERVAL == 0:
+            cfg = get_settings()
+            self._cluster_state = self._cluster_tracker.update(
+                self, self.step_count, cfg.cluster_radius
+            )
 
         # Check whether a prior LLM task finished and update cached directive.
         await self._check_llm_task()
