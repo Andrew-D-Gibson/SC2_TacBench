@@ -175,15 +175,21 @@ class BaseSC2Bot(BotAI):
         # Check whether a prior LLM task finished and update cached directive.
         await self._check_llm_task()
 
+        # Only build the battlefield observation (and snapshot HP history for
+        # delta tracking) when we are actually going to send it to the LLM.
+        # If the previous call is still in-flight we skip entirely — otherwise
+        # get_hp_delta would advance _unit_hp_history without the LLM ever
+        # seeing those values, causing the structure alerts to drift out of sync.
         if self.step_count % self.K_STEPS == 0:
-            battlefield = obs_raw_text(self, self.step_count)
-            if self._map_scenario and self._map_scenario.briefing:
-                battlefield = self._map_scenario.briefing + "\n\n" + battlefield
-            cfg = get_settings()
-            if cfg.show_history and self.episode_log:
-                battlefield += "\n\n" + self._build_history_section(cfg.history_length)
+            if not (self._pending_llm_task and not self._pending_llm_task.done()):
+                battlefield = obs_raw_text(self, self.step_count)
+                if self._map_scenario and self._map_scenario.briefing:
+                    battlefield = self._map_scenario.briefing + "\n\n" + battlefield
+                cfg = get_settings()
+                if cfg.show_history and self.episode_log:
+                    battlefield += "\n\n" + self._build_history_section(cfg.history_length)
 
-            self._schedule_llm_call(self.step_count, battlefield)
+                self._schedule_llm_call(self.step_count, battlefield)
 
         # Every step: execute current cached directive.
         # A handler may return a directive name to auto-transition (e.g. SPREAD → HOLD_POSITION).

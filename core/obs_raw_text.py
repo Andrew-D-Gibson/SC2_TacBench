@@ -11,22 +11,37 @@ _terrain_cache: dict[tuple, tuple] = {}
 
 # ── Unit entry formatters ─────────────────────────────────────────────────────
 
+def _hp_delta_str(delta: int | None) -> str:
+    """Human-readable HP delta label, intentionally verbose so the LLM acts on it."""
+    if delta is None or delta == 0:
+        return ""
+    if delta < 0:
+        return f" (lost {abs(delta)}% HP since last report)"
+    return f" (healed {delta}% HP since last report)"
+
+
 def _fmt_friendly_unit(unit, bot) -> str:
     """Friendly unit: persistent ID, current HP%, HP delta since last call."""
-    uid      = bot.get_unit_id(unit)
-    hp_pct   = int(100 * unit.health / max(unit.health_max, 1))
-    delta    = bot.get_hp_delta(unit)
-    delta_str = f"({delta:+d}%)" if delta is not None and delta != 0 else ""
-    return f"{unit.name} #{uid} {hp_pct}%HP{delta_str} @ ({unit.position.x:.0f},{unit.position.y:.0f})"
+    uid    = bot.get_unit_id(unit)
+    hp_pct = int(100 * unit.health / max(unit.health_max, 1))
+    delta  = bot.get_hp_delta(unit)
+    return f"{unit.name} #{uid} {hp_pct}%HP{_hp_delta_str(delta)} @ ({unit.position.x:.0f},{unit.position.y:.0f})"
 
 
 def _fmt_enemy_unit(unit, bot) -> str:
     """Enemy unit: persistent ID, HP% and delta."""
-    uid       = bot.get_unit_id(unit)
-    hp_pct    = int(100 * unit.health / max(unit.health_max, 1))
-    delta     = bot.get_hp_delta(unit)
-    delta_str = f"({delta:+d}%)" if delta is not None and delta != 0 else ""
-    return f"{unit.name} #{uid} {hp_pct}%HP{delta_str} @ ({unit.position.x:.0f},{unit.position.y:.0f})"
+    uid    = bot.get_unit_id(unit)
+    hp_pct = int(100 * unit.health / max(unit.health_max, 1))
+    delta  = bot.get_hp_delta(unit)
+    return f"{unit.name} #{uid} {hp_pct}%HP{_hp_delta_str(delta)} @ ({unit.position.x:.0f},{unit.position.y:.0f})"
+
+
+def _fmt_friendly_structure(s, bot) -> str:
+    """Friendly structure: same as friendly unit format."""
+    uid    = bot.get_unit_id(s)
+    hp_pct = int(100 * s.health / max(s.health_max, 1))
+    delta  = bot.get_hp_delta(s)
+    return f"{s.name} #{uid} {hp_pct}%HP{_hp_delta_str(delta)} @ ({s.position.x:.0f},{s.position.y:.0f})"
 
 
 def _fmt_units(units, label: str, bot, friendly: bool, cap: int = 64) -> str:
@@ -38,11 +53,42 @@ def _fmt_units(units, label: str, bot, friendly: bool, cap: int = 64) -> str:
     return f"{label}({len(units)}): " + "; ".join(entries) + suffix
 
 
-def _fmt_structures(structures, label: str, bot) -> str | None:
+def _fmt_structures(structures, label: str, bot, friendly: bool = False) -> str | None:
     if not structures:
         return None
-    entries = [_fmt_enemy_unit(s, bot) for s in structures]
+    fmt = _fmt_friendly_structure if friendly else _fmt_enemy_unit
+    entries = [fmt(s, bot) for s in structures]
     return f"{label}({len(structures)}): " + "; ".join(entries)
+
+
+def _fmt_structure_alerts(bot) -> str | None:
+    """
+    Emit urgent warnings for own structures taking damage since the last report.
+
+    IMPORTANT: call this BEFORE any formatter that calls get_hp_delta, so that
+    _unit_hp_history still holds the previous-report snapshot.  The delta shown
+    here is therefore genuinely "since the LLM last saw this structure."
+    """
+    alerts = []
+    for s in sorted(bot.structures, key=lambda s: s.tag):
+        prev = bot._unit_hp_history.get(s.tag)
+        if prev is None:
+            continue  # first observation — no baseline yet
+        current = int(100 * s.health / max(s.health_max, 1))
+        lost = prev - current
+        if lost > 0:
+            uid = bot.get_unit_id(s)
+            alerts.append(
+                f"  !! {s.name} #{uid} is UNDER ATTACK — lost {lost}% HP "
+                f"(now at {current}%) @ ({s.position.x:.0f},{s.position.y:.0f})"
+            )
+    if not alerts:
+        return None
+    return (
+        "!! STRUCTURE ALERTS — IMMEDIATE ACTION REQUIRED !!\n"
+        + "\n".join(alerts)
+        + "\n!! Send units to defend these structures NOW !!"
+    )
 
 
 # ── Simple stats ──────────────────────────────────────────────────────────────
@@ -227,10 +273,16 @@ def obs_raw_text(bot, step: int) -> str:
     if cfg.show_tactical_overview:
         sections.append(_fmt_tactical_overview(fg, fa, eg, ea, k_steps=cfg.k_steps))
 
+    # Structure alerts must come before any formatter that calls get_hp_delta,
+    # so the HP history still reflects the previous report when we diff against it.
+    structure_alerts = _fmt_structure_alerts(bot)
+    if structure_alerts:
+        sections.append(structure_alerts)
+
     if cfg.show_your_units:
         sections.append(_fmt_units(bot.units, "YOUR UNITS", bot, friendly=True))
     if cfg.show_your_structures:
-        result = _fmt_structures(bot.structures, "YOUR STRUCTURES", bot)
+        result = _fmt_structures(bot.structures, "YOUR STRUCTURES", bot, friendly=True)
         if result:
             sections.append(result)
     if cfg.show_enemy_units:
