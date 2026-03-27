@@ -50,20 +50,53 @@ def hold_position(bot: BotAI, army, enemies, directive: Directive):
 
 
 def spread(bot: BotAI, army, enemies, directive: Directive):
-    """Spread army units into a grid formation around their center."""
+    """Spread army units into a grid formation around their center.
+    Returns 'HOLD_POSITION' so the engine auto-transitions after one execution,
+    preventing units from oscillating as the move order is re-issued each step."""
     center = army.center
     for i, unit in enumerate(army):
         offset_x = (i % 3 - 1) * 3.0
         offset_y = (i // 3 - 1) * 3.0
         unit.move(center + (offset_x, offset_y))
+    return "HOLD_POSITION"
+
+
+def retreat(bot: BotAI, army, enemies, directive: Directive):
+    """Move all army units directly away from the centroid of visible enemies."""
+    if not enemies:
+        return  # Nothing to retreat from — no-op.
+
+    enemy_center = enemies.center
+    army_center  = army.center
+
+    dx = army_center.x - enemy_center.x
+    dy = army_center.y - enemy_center.y
+    dist = (dx ** 2 + dy ** 2) ** 0.5
+
+    if dist < 0.001:  # Exactly overlapping — pick an arbitrary escape direction.
+        dx, dy, dist = 1.0, 0.0, 1.0
+
+    retreat_dist = 15.0
+    tx = army_center.x + (dx / dist) * retreat_dist
+    ty = army_center.y + (dy / dist) * retreat_dist
+
+    # Clamp to map bounds so units don't walk off the edge.
+    map_w, map_h = bot.game_info.map_size
+    tx = max(0.0, min(float(map_w), tx))
+    ty = max(0.0, min(float(map_h), ty))
+
+    target = Point2((tx, ty))
+    for unit in army:
+        unit.move(target)
 
 
 DIRECTIVE_REGISTRY = {
-    "MOVE":         move,
-    "ATTACK":       attack,
-    "FOCUS_FIRE":   focus_fire,
+    "MOVE":          move,
+    "ATTACK":        attack,
+    "FOCUS_FIRE":    focus_fire,
     "HOLD_POSITION": hold_position,
-    "SPREAD":       spread,
+    "SPREAD":        spread,
+    "RETREAT":       retreat,
 }
 
 
@@ -109,6 +142,9 @@ async def execute_directive(bot: BotAI, directive, fallback: str = "HOLD_POSITIO
     """
     Translate a named directive into python-sc2 unit actions.
     Runs every game step using the most recently cached directive.
+
+    Returns an optional str: if a handler returns a directive name (e.g. SPREAD
+    returning 'HOLD_POSITION'), the caller should switch to that directive.
     """
     army = bot.units.of_type([
         UnitTypeId.MARINE,
@@ -116,7 +152,7 @@ async def execute_directive(bot: BotAI, directive, fallback: str = "HOLD_POSITIO
     ])
 
     if not army:
-        return
+        return None
 
     enemies = bot.enemy_units.visible
 
@@ -129,8 +165,7 @@ async def execute_directive(bot: BotAI, directive, fallback: str = "HOLD_POSITIO
 
     handler = DIRECTIVE_REGISTRY.get(directive_name)
     if handler is not None:
-        handler(bot, army, enemies, directive)
-        return
+        return handler(bot, army, enemies, directive)
 
     # Directive not found — warn and attempt the fallback.
     fallback_handler = DIRECTIVE_REGISTRY.get(fallback)

@@ -16,7 +16,7 @@ class TacBenchSettings(BaseSettings):
     opponent_difficulty: str = "Easy"
     realtime: bool = False
     k_steps: int = 30
-    max_steps: int = 5000
+    max_steps: int = 1000
     fallback_directive: str = "HOLD_POSITION"
 
     # Observation section toggles — set via TACBENCH_SHOW_* in .env
@@ -27,6 +27,8 @@ class TacBenchSettings(BaseSettings):
     show_supply: bool = True
     show_game_time: bool = True
     show_locations: bool = True
+    show_tactical_overview: bool = True  # per-cluster matchups with range labels and local force ratios
+    cluster_radius: float = 12.0         # tile radius used to group units into clusters
 
     # Historical context fed to the LLM alongside the current observation
     show_history: bool = False

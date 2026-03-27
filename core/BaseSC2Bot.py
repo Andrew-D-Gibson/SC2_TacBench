@@ -142,7 +142,10 @@ class BaseSC2Bot(BotAI):
             self._schedule_llm_call(self.step_count, battlefield)
 
         # Every step: execute current cached directive.
-        await execute_directive(self, self.current_directive, fallback=self.FALLBACK_DIRECTIVE)
+        # A handler may return a directive name to auto-transition (e.g. SPREAD → HOLD_POSITION).
+        switch_to = await execute_directive(self, self.current_directive, fallback=self.FALLBACK_DIRECTIVE)
+        if switch_to:
+            self.current_directive = Directive(name=switch_to, reasoning="auto-transition from SPREAD")
 
 
     async def on_end(self, game_result: Result):
