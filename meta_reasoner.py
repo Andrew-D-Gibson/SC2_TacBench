@@ -1,7 +1,12 @@
 """
 meta_reasoner.py — Analyzes SC2 game failure logs and decides what to change.
 
-Calls a local Qwen model via Ollama.  Returns a structured decision dict:
+Two-phase approach for better small-model performance:
+  Phase 1 (Analysis): Free-form chain-of-thought — summarize each match, diagnose
+                      failures, validate conclusions. No JSON pressure.
+  Phase 2 (Decision): Given the analysis, output a single structured JSON decision.
+
+Returns a decision dict:
   {"action": "edit_prompt"|"edit_code"|"stop_missing_info"|"noop",
    "reason": "...",
    "changes": [{"file": "...", "instructions": "..."}]}
@@ -20,22 +25,69 @@ from config import (
     PROJECT_ROOT,
 )
 
-# ── System prompt ──────────────────────────────────────────────────────────────
 
-_SYSTEM_PROMPT = f"""You are an expert prompt engineer and Python developer optimizing an LLM agent that plays custom StarCraft II maps.
+# ── Phase 1: Analysis system prompt ───────────────────────────────────────────
 
-Your job: analyze failure logs from the LLM player, then decide what change to make to improve performance.
+_ANALYSIS_SYSTEM = """\
+You are an expert StarCraft II analyst reviewing the performance of an LLM-controlled bot.
+
+Your task is to deeply analyze the game logs provided and produce a structured written analysis.
+Work through each failed map one at a time. For each map, cover these sections:
+
+MATCH SUMMARY
+  Briefly describe the arc of the game: what forces were present, how the bot moved,
+  what major engagements happened, and how it ended.
+
+FAILURE ANALYSIS
+  Identify the specific decisions that led to the loss. Be concrete — reference step
+  numbers, unit types, and directive choices from the log. Ask: did the bot move when
+  it should have held? Did it ignore a critical enemy unit? Did it issue the wrong
+  directive for the matchup?
+
+ROOT CAUSE
+  State the single most important reason the bot lost. This should be something that,
+  if fixed, would most plausibly change the outcome.
+
+SELF-CHECK
+  Review your own Root Cause above. Play devil's advocate:
+  - Is there another explanation you might be missing?
+  - Does the Root Cause actually appear multiple times in the log, or was it a one-off?
+  - Would fixing it actually require a prompt change, or is the information already there
+    and the bot just misread it?
+  Revise your Root Cause if warranted, and briefly state your confidence level.
+
+After all maps are analyzed, write a short OVERALL RECOMMENDATION section summarizing
+the highest-leverage single change across all failures.
+
+Be specific and analytical. Reference the actual log data.\
+"""
+
+
+# ── Phase 2: Decision system prompt ───────────────────────────────────────────
+
+_DECISION_SYSTEM = f"""\
+You are an expert prompt engineer and Python developer optimizing an LLM agent that plays custom StarCraft II maps.
+
+You will be given:
+  1. The current player prompt and formatting code.
+  2. A detailed analysis of recent match failures (already written).
+
+Your job: based on the analysis, decide on the single best change to make.
 
 You may only edit files from this whitelist:
 {json.dumps(EDITABLE_FILES, indent=2)}
 
 DECISION LOGIC:
-- Strongly prefer editing the prompt file. Only propose code changes to formatting functions if you are confident the player lacks critical information that the prompt cannot compensate for.
-- If the player clearly lacks access to game state data it needs (e.g., a key unit type or event is never present in the logs passed to it), and no prompt change could fix this, return action "stop_missing_info".
+- Strongly prefer editing the prompt file. Only propose code changes to formatting
+  functions if the player clearly lacks access to critical game state data that the
+  prompt cannot compensate for.
+- If the player lacks access to data that is never present in the logs and no prompt
+  change could fix this, return action "stop_missing_info".
 - Otherwise, return action "edit_prompt" or "edit_code".
 
 OUTPUT FORMAT:
-You must respond with a single JSON object only. No preamble, no explanation outside the JSON, no markdown code fences.
+Respond with a single JSON object only. No preamble, no explanation outside the JSON,
+no markdown code fences.
 
 {{
   "action": "edit_prompt" | "edit_code" | "stop_missing_info",
@@ -43,24 +95,25 @@ You must respond with a single JSON object only. No preamble, no explanation out
   "changes": [
     {{
       "file": "relative/path/to/file.txt",
-      "instructions": "Detailed plain-English description of what to change in this file. Be specific about what to add, remove, or reword. Do not write the new file content here."
+      "instructions": "Detailed plain-English description of what to change. Be specific about what to add, remove, or reword. Do not write the new file content here."
     }}
   ]
 }}
 
-For "stop_missing_info", omit the "changes" key and explain in "reason" exactly what data the player cannot see.
-For "edit_prompt" or "edit_code", "changes" must contain one entry per file being modified. Only include files from the whitelist.
+For "stop_missing_info", omit "changes" and explain in "reason" exactly what data the player cannot see.
+For "edit_prompt" or "edit_code", "changes" must contain one entry per file being modified.
+Only include files from the whitelist.\
 """
 
 
-# ── Ollama interface ───────────────────────────────────────────────────────────
+# ── Ollama streaming call ──────────────────────────────────────────────────────
 
-def _call_ollama(user_message: str) -> str:
-    """POST to Ollama /api/chat with streaming, print tokens live, return full reply."""
+def _call_ollama(system: str, user_message: str, label: str) -> str:
+    """POST to Ollama /api/chat with streaming. Prints tokens live with a label prefix."""
     payload = {
         "model": OLLAMA_MODEL,
         "messages": [
-            {"role": "system", "content": _SYSTEM_PROMPT},
+            {"role": "system", "content": system},
             {"role": "user",   "content": user_message},
         ],
         "stream": True,
@@ -73,7 +126,7 @@ def _call_ollama(user_message: str) -> str:
     )
     response.raise_for_status()
 
-    print("  [meta_reasoner] ", end="", flush=True)
+    print(f"\n  [{label}]\n", flush=True)
     parts = []
     for line in response.iter_lines():
         if not line:
@@ -85,13 +138,17 @@ def _call_ollama(user_message: str) -> str:
             parts.append(delta)
         if chunk.get("done"):
             break
-    print()  # newline after stream ends
+    print("\n", flush=True)
     return "".join(parts)
 
+
+# ── JSON parsing ───────────────────────────────────────────────────────────────
 
 def _parse_decision(raw: str) -> dict:
     """Strip markdown fences, parse JSON, validate required keys."""
     text = raw.strip()
+
+    # Strip ```json ... ``` or ``` ... ``` fences
     if text.startswith("```"):
         text = text.lstrip("`")
         if text.startswith("json"):
@@ -99,6 +156,11 @@ def _parse_decision(raw: str) -> dict:
         if text.endswith("```"):
             text = text[:-3]
         text = text.strip()
+
+    # Some models emit a brief preamble before the JSON object; find the first {
+    brace = text.find("{")
+    if brace > 0:
+        text = text[brace:]
 
     parsed = json.loads(text)
 
@@ -115,52 +177,38 @@ def _parse_decision(raw: str) -> dict:
     return parsed
 
 
+# ── Context builders ───────────────────────────────────────────────────────────
+
 def _read_file(rel_path: str) -> str:
     abs_path = os.path.join(PROJECT_ROOT, rel_path)
     with open(abs_path, encoding="utf-8") as f:
         return f.read()
 
 
-def _build_user_message(
+def _build_game_context(
     failed_maps: list[str],
     all_results: dict,
     run_history: dict,
 ) -> str:
     """
-    Assemble the context passed to the meta-reasoner:
-      1. Current prompt file
-      2. Current formatting file(s)
-      3. Full JSONL log for each failed map
-      4. Run history summary table
+    Assembles raw game context: logs for each failed map + run history table.
+    Does NOT include editable file contents (those go in the decision phase).
     """
     parts = []
 
-    # 1. Player prompt
-    parts.append("=== CURRENT PLAYER PROMPT (prompt.txt) ===")
-    parts.append(_read_file("prompt.txt"))
-
-    # 2. Formatting source files (all editable files except the prompt)
-    for rel_path in EDITABLE_FILES:
-        if rel_path == "prompt.txt":
-            continue
-        parts.append(f"\n=== CURRENT FORMATTING FILE ({rel_path}) ===")
-        parts.append(_read_file(rel_path))
-
-    # 3. Failure log contents
     for map_id in failed_maps:
         result = all_results.get(map_id, {})
         log_path = result.get("log_path")
         best = run_history.get(map_id, {})
-        parts.append(f"\n=== FAILURE LOG: {map_id} ===")
-        parts.append(f"Current run: total_steps={result.get('total_steps', 0)}, outcome={result.get('outcome', 'LOSS')}")
-        parts.append(f"Best ever:   total_steps={best.get('best_steps', 0)}, result={best.get('best_result', 'LOSS')}")
+        parts.append(f"=== GAME LOG: {map_id} ===")
+        parts.append(f"This run:  total_steps={result.get('total_steps', 0)}, outcome={result.get('outcome', 'LOSS')}")
+        parts.append(f"Best ever: total_steps={best.get('best_steps', 0)}, result={best.get('best_result', 'LOSS')}")
         if log_path and os.path.exists(log_path):
             with open(log_path, encoding="utf-8") as f:
                 parts.append(f.read())
         else:
-            parts.append("(no log file found — map likely crashed)")
+            parts.append("(no log file — map likely crashed before writing)")
 
-    # 4. Run history table
     parts.append("\n=== RUN HISTORY SUMMARY ===")
     parts.append(f"{'Map':<20} {'Current Steps':>14} {'Best Steps':>11} {'Best Result':>12}")
     parts.append("-" * 60)
@@ -175,6 +223,27 @@ def _build_user_message(
     return "\n".join(parts)
 
 
+def _build_decision_context(analysis: str) -> str:
+    """
+    Assembles context for the decision phase: editable file contents + the analysis.
+    """
+    parts = []
+
+    parts.append("=== CURRENT PLAYER PROMPT (prompt.txt) ===")
+    parts.append(_read_file("prompt.txt"))
+
+    for rel_path in EDITABLE_FILES:
+        if rel_path == "prompt.txt":
+            continue
+        parts.append(f"\n=== CURRENT FORMATTING FILE ({rel_path}) ===")
+        parts.append(_read_file(rel_path))
+
+    parts.append("\n=== MATCH ANALYSIS (from Phase 1) ===")
+    parts.append(analysis)
+
+    return "\n".join(parts)
+
+
 # ── Public interface ───────────────────────────────────────────────────────────
 
 def analyze(
@@ -183,27 +252,40 @@ def analyze(
     run_history: dict,
 ) -> dict:
     """
-    Call the meta-reasoner and return a decision dict.
-    Retries once on JSON parse failure.
-    Falls back to {"action": "noop", ...} if both attempts fail.
+    Two-phase meta-reasoning:
+      Phase 1 — Free-form analysis: summarize matches, diagnose failures, self-validate.
+      Phase 2 — Structured decision: given the analysis, output JSON action.
+
+    Retries the decision phase once on JSON parse failure.
+    Falls back to {"action": "noop"} if both attempts fail.
     """
-    user_msg = _build_user_message(failed_maps, all_results, run_history)
+    game_context = _build_game_context(failed_maps, all_results, run_history)
+
+    # ── Phase 1: Analysis ──────────────────────────────────────────────────────
+    print("  [meta_reasoner] Phase 1: analyzing match failures...")
+    try:
+        analysis = _call_ollama(_ANALYSIS_SYSTEM, game_context, "meta_reasoner / analysis")
+    except Exception as exc:
+        print(f"  [meta_reasoner] Analysis call failed: {exc}")
+        return {"action": "noop", "reason": f"analysis phase failed: {exc}", "changes": []}
+
+    # ── Phase 2: Decision ──────────────────────────────────────────────────────
+    print("  [meta_reasoner] Phase 2: deciding what to change...")
+    decision_context = _build_decision_context(analysis)
 
     for attempt in range(2):
         try:
             if attempt == 1:
-                user_msg = user_msg + "\n\nIMPORTANT: Return ONLY valid JSON. No preamble, no markdown, no extra text."
-            raw = _call_ollama(user_msg)
-            decision = _parse_decision(raw)
-            return decision
+                decision_context += "\n\nIMPORTANT: Output ONLY the JSON object. No preamble, no markdown, no extra text."
+            raw = _call_ollama(_DECISION_SYSTEM, decision_context, "meta_reasoner / decision")
+            return _parse_decision(raw)
         except json.JSONDecodeError as exc:
             print(f"  [meta_reasoner] JSON parse error (attempt {attempt+1}): {exc}")
         except ValueError as exc:
             print(f"  [meta_reasoner] Validation error (attempt {attempt+1}): {exc}")
         except Exception as exc:
             print(f"  [meta_reasoner] Ollama call failed (attempt {attempt+1}): {exc}")
-            # Don't retry on connection errors — Ollama is down
             break
 
-    print("  [meta_reasoner] Both attempts failed — skipping this iteration.")
-    return {"action": "noop", "reason": "meta-reasoner parse failed after 2 attempts", "changes": []}
+    print("  [meta_reasoner] Decision phase failed after 2 attempts — skipping iteration.")
+    return {"action": "noop", "reason": "decision phase failed after 2 attempts", "changes": []}

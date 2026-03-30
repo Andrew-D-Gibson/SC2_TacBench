@@ -197,14 +197,17 @@ def all_won(results: dict) -> bool:
 
 
 def check_improvement(old_results: dict, new_results: dict) -> bool:
-    """Return True if any map improved (more steps or new win)."""
+    """Return True if performance improved with no WIN→LOSS regressions on any map."""
+    improved_any = False
     for map_id, new_r in new_results.items():
         old_r = old_results.get(map_id, {"won": False, "total_steps": 0})
+        if old_r["won"] and not new_r["won"]:
+            return False  # WIN→LOSS regression: always revert
         if new_r["won"] and not old_r["won"]:
-            return True
-        if not new_r["won"] and new_r["total_steps"] > old_r["total_steps"]:
-            return True
-    return False
+            improved_any = True
+        elif not new_r["won"] and not old_r["won"] and new_r["total_steps"] > old_r["total_steps"]:
+            improved_any = True
+    return improved_any
 
 
 def _improvement_per_map(old_results: dict, new_results: dict) -> dict:
