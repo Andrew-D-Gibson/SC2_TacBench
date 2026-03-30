@@ -1,9 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(xargs grep:*)",
-      "Read(//c/Users/adgib/**)",
-      "Bash(find . -name *.venv -o -name venv -type d)"
-    ]
-  }
-}
