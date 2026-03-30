@@ -94,18 +94,18 @@ def _print_status(msg: str):
 
 # ── Map runner ─────────────────────────────────────────────────────────────────
 
-def _find_new_log(pre_run_logs: set[Path]) -> Path | None:
-    """Return the single new .jsonl file that appeared in LOGS_DIR since pre_run_logs."""
+def _find_new_log(run_start_time: float) -> Path | None:
+    """
+    Return the .jsonl file in LOGS_DIR whose mtime is >= run_start_time.
+    Using mtime avoids Windows Path set-comparison issues.
+    If multiple files qualify (shouldn't happen), returns the newest.
+    """
     logs_dir = Path(LOGS_DIR)
     logs_dir.mkdir(parents=True, exist_ok=True)
-    current = set(logs_dir.glob("*.jsonl"))
-    new = current - pre_run_logs
-    if len(new) == 1:
-        return new.pop()
-    if len(new) > 1:
-        # Multiple new files — take the most recently modified
-        return max(new, key=lambda p: p.stat().st_mtime)
-    return None
+    candidates = [p for p in logs_dir.glob("*.jsonl") if p.stat().st_mtime >= run_start_time]
+    if not candidates:
+        return None
+    return max(candidates, key=lambda p: p.stat().st_mtime)
 
 
 def _parse_log_summary(log_path: Path) -> dict:
@@ -122,10 +122,6 @@ def run_one_map(map_id: str) -> dict:
     Run a single map via `python core/main.py` with TACBENCH_MAP injected.
     Returns a result dict with: map_id, won, total_steps, outcome, log_path, error.
     """
-    logs_dir = Path(LOGS_DIR)
-    logs_dir.mkdir(parents=True, exist_ok=True)
-    pre_run_logs = set(logs_dir.glob("*.jsonl"))
-
     env = os.environ.copy()
     env["TACBENCH_MAP"] = map_id
 
@@ -149,12 +145,14 @@ def run_one_map(map_id: str) -> dict:
             "error": f"subprocess timeout after {MAP_RUN_TIMEOUT}s",
         }
     except Exception as exc:
+        error_msg = f"subprocess.run raised {type(exc).__name__}: {exc}"
+        _print_status(f"ERROR running '{map_id}': {error_msg}")
         return {
             "map_id": map_id, "won": False, "total_steps": 0,
-            "outcome": "ERROR", "log_path": None, "error": str(exc),
+            "outcome": "ERROR", "log_path": None, "error": error_msg,
         }
 
-    log_path = _find_new_log(pre_run_logs)
+    log_path = _find_new_log(start)
     if log_path is None:
         return {
             "map_id": map_id, "won": False, "total_steps": 0,
