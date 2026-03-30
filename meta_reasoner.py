@@ -56,22 +56,37 @@ For "edit_prompt" or "edit_code", "changes" must contain one entry per file bein
 # ── Ollama interface ───────────────────────────────────────────────────────────
 
 def _call_ollama(user_message: str) -> str:
-    """POST to Ollama /api/chat and return the assistant reply text."""
+    """POST to Ollama /api/chat with streaming, print tokens live, return full reply."""
     payload = {
         "model": OLLAMA_MODEL,
         "messages": [
             {"role": "system", "content": _SYSTEM_PROMPT},
             {"role": "user",   "content": user_message},
         ],
-        "stream": False,
+        "stream": True,
     }
     response = requests.post(
         f"{OLLAMA_BASE_URL}/api/chat",
         json=payload,
         timeout=OLLAMA_TIMEOUT,
+        stream=True,
     )
     response.raise_for_status()
-    return response.json()["message"]["content"]
+
+    print("  [meta_reasoner] ", end="", flush=True)
+    parts = []
+    for line in response.iter_lines():
+        if not line:
+            continue
+        chunk = json.loads(line)
+        delta = chunk.get("message", {}).get("content", "")
+        if delta:
+            print(delta, end="", flush=True)
+            parts.append(delta)
+        if chunk.get("done"):
+            break
+    print()  # newline after stream ends
+    return "".join(parts)
 
 
 def _parse_decision(raw: str) -> dict:

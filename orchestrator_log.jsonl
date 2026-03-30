@@ -1,1 +1,4 @@
 {"event": "run_complete", "iteration": 1, "results": {"tacbench_01": {"won": false, "total_steps": 0, "outcome": "ERROR"}, "tacbench_02": {"won": false, "total_steps": 0, "outcome": "ERROR"}}, "timestamp": "2026-03-30T14:47:23.773367"}
+{"event": "run_complete", "iteration": 1, "results": {"tacbench_01": {"won": false, "total_steps": 0, "outcome": "ERROR"}, "tacbench_02": {"won": false, "total_steps": 0, "outcome": "ERROR"}}, "timestamp": "2026-03-30T15:00:23.662195"}
+{"event": "meta_decision", "iteration": 1, "action": "noop", "reason": "meta-reasoner parse failed after 2 attempts", "changes": [], "timestamp": "2026-03-30T15:02:07.247277"}
+{"event": "stop", "iteration": 1, "reason": "max_iterations", "run_history": {"tacbench_01": {"best_steps": 0, "best_result": "LOSS"}, "tacbench_02": {"best_steps": 0, "best_result": "LOSS"}}, "timestamp": "2026-03-30T15:02:07.249036"}

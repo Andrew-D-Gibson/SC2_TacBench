@@ -109,10 +109,12 @@ def _find_new_log(run_start_time: float) -> Path | None:
 
 
 def _parse_log_summary(log_path: Path) -> dict:
-    """Read the first line of a JSONL game log and return its summary dict."""
+    """Read the first JSON object from a game log and return its summary dict.
+    Handles both compact JSONL (one object per line) and pretty-printed JSON."""
     with open(log_path, encoding="utf-8") as f:
-        first_line = f.readline()
-    summary = json.loads(first_line)
+        content = f.read()
+    decoder = json.JSONDecoder()
+    summary, _ = decoder.raw_decode(content.strip())
     assert summary.get("type") == "summary", f"Expected summary entry, got: {summary.get('type')}"
     return summary
 
@@ -263,7 +265,8 @@ def main():
         results = run_all_maps()
         _print_status(f"Results: {_results_summary(results)}")
         _log_event({"event": "run_complete", "iteration": iteration, "results": {
-            m: {"won": r["won"], "total_steps": r["total_steps"], "outcome": r["outcome"]}
+            m: {"won": r["won"], "total_steps": r["total_steps"], "outcome": r["outcome"],
+                "error": r.get("error")}
             for m, r in results.items()
         }})
 
