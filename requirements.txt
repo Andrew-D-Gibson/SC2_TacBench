@@ -1,0 +1,11 @@
+# TacBench dependencies
+# Requires Python >= 3.11
+
+# StarCraft II bot framework (actively maintained python-sc2 fork)
+burnysc2>=0.11.0
+
+# Settings management via .env file
+pydantic-settings>=2.0.0
+
+# Anthropic API client (used by ClaudeBot)
+anthropic>=0.40.0
