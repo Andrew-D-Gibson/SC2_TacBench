@@ -76,7 +76,7 @@ def _fmt_structures(structures, label: str, bot) -> str | None:
     if not structures:
         return None
     entries = [_fmt_unit(s, bot) for s in structures]
-    return f"{label}({len(structures)}): " + "\n".join(entries)
+    return f"{label}({len(structures)}):\n" + "\n".join(entries)
 
 
 def _fmt_structure_alerts(bot) -> str | None:
