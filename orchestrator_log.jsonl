@@ -1,0 +1,1 @@
+{"event": "run_complete", "iteration": 1, "results": {"tacbench_01": {"won": false, "total_steps": 0, "outcome": "ERROR"}, "tacbench_02": {"won": false, "total_steps": 0, "outcome": "ERROR"}}, "timestamp": "2026-03-30T14:47:23.773367"}
