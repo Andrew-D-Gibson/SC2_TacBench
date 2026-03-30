@@ -40,7 +40,7 @@ MAP_LIST = [
 
 # ── Ollama settings ────────────────────────────────────────────────────────────
 
-OLLAMA_MODEL    = "qwen3.5:9b"               # meta-reasoner model
+OLLAMA_MODEL    = "qwen3:8b"               # meta-reasoner model
 OLLAMA_BASE_URL = "http://localhost:11434"
 OLLAMA_TIMEOUT  = 600                      # seconds; meta-reasoning is slower than playing
 
