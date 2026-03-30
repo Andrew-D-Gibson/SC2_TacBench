@@ -32,6 +32,9 @@ class TacBenchSettings(BaseSettings):
     cluster_radius: float = 12.0         # tile radius used to group units into clusters
     cluster_track_interval: int = 5      # update cluster velocities every N game steps
 
+    # Print the full LLM input to the console each call (useful for debugging prompts)
+    show_llm_prompt: bool = False
+
     # Historical context fed to the LLM alongside the current observation
     show_history: bool = False
     history_length: int = 3  # number of past LLM calls to include

@@ -118,6 +118,77 @@ def _normalize_from_dict(raw: dict, allowed_set: set, fallback: str) -> Directiv
 
 # --- Public interface ---
 
+def _normalize_list(raw_list: list, allowed_set: set, fallback: str) -> list["Directive"]:
+    """Normalize a JSON array of directive dicts into a list of Directive objects."""
+    if not raw_list:
+        return [_make_fallback(raw_list, fallback, "empty directive list")]
+    result = []
+    for item in raw_list:
+        if isinstance(item, dict):
+            result.append(_normalize_from_dict(item, allowed_set, fallback))
+        else:
+            result.append(_make_fallback(item, fallback, f"expected dict in array, got {type(item).__name__}"))
+    return result
+
+
+def normalize_directives(raw: Any, allowed: Iterable[str], fallback: str) -> list["Directive"]:
+    """
+    Normalize raw LLM output into a list of Directive objects.
+
+    Accepts:
+      - JSON array string  "[{...}, {...}]"  → list of Directive (primary format)
+      - JSON object string "{...}"           → [Directive]  (single-command fallback)
+      - dict / list                          → same as above
+      - Plain string                         → [Directive]
+
+    On complete parse failure returns a single-element list containing the fallback directive.
+    """
+    allowed_set = set(allowed)
+
+    if raw is None:
+        return [_make_fallback(raw, fallback, "empty response")]
+
+    if isinstance(raw, list):
+        return _normalize_list(raw, allowed_set, fallback)
+
+    if isinstance(raw, dict):
+        return [_normalize_from_dict(raw, allowed_set, fallback)]
+
+    if isinstance(raw, str):
+        text = raw.strip()
+        if text.startswith("```"):
+            text = text.lstrip("`")
+            if text.startswith("json"):
+                text = text[4:]
+            if text.endswith("```"):
+                text = text[:-3]
+            text = text.strip()
+
+        if text.startswith("["):
+            try:
+                parsed = json.loads(text)
+            except json.JSONDecodeError:
+                return [_make_fallback(raw, fallback, "invalid JSON array")]
+            directives = _normalize_list(parsed, allowed_set, fallback)
+            for d in directives:
+                d.raw = raw
+            return directives
+
+        if text.startswith("{"):
+            try:
+                parsed = json.loads(text)
+            except json.JSONDecodeError:
+                return [_make_fallback(raw, fallback, "invalid JSON object")]
+            d = _normalize_from_dict(parsed, allowed_set, fallback)
+            d.raw = raw
+            return [d]
+
+        # Plain directive name
+        return [_normalize_from_string(raw, allowed_set, fallback)]
+
+    return [_make_fallback(raw, fallback, f"unsupported type: {type(raw).__name__}")]
+
+
 def normalize_directive(raw: Any, allowed: Iterable[str], fallback: str) -> Directive:
     """
     Normalize raw LLM output (dict / JSON string / plain string / Directive)

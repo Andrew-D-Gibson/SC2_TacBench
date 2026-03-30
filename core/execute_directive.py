@@ -76,17 +76,18 @@ def attack(bot: BotAI, army, enemies, directive: Directive):
 
 
 def focus_fire(bot: BotAI, army, enemies, directive: Directive):
-    """Focus army units on a specific enemy (by target_unit ID) or the lowest-health visible enemy."""
+    """Focus army units on a specific enemy unit by target_unit ID. No-op if target_unit is missing or not found."""
     if not enemies:
         return
-    target = None
-    if directive.target_unit is not None:
-        id_to_tag = {v: k for k, v in bot._unit_id_map.items()}
-        tag = id_to_tag.get(directive.target_unit)
-        if tag is not None:
-            target = enemies.find_by_tag(tag)
+    if directive.target_unit is None:
+        console.warn("FOCUS_FIRE directive is missing target_unit — no action taken.")
+        return
+    id_to_tag = {v: k for k, v in bot._unit_id_map.items()}
+    tag = id_to_tag.get(directive.target_unit)
+    target = enemies.find_by_tag(tag) if tag is not None else None
     if target is None:
-        target = min(enemies, key=lambda u: u.health)
+        console.warn(f"FOCUS_FIRE target_unit {directive.target_unit} not found in visible enemies — no action taken.")
+        return
     for unit in army:
         unit.attack(target)
 
@@ -101,15 +102,12 @@ def hold_position(bot: BotAI, army, enemies, directive: Directive):
 
 
 def spread(bot: BotAI, army, enemies, directive: Directive):
-    """Spread army units into a grid formation around their center.
-    Returns 'HOLD_POSITION' so the engine auto-transitions after one execution,
-    preventing units from oscillating as the move order is re-issued each step."""
+    """Spread army units into a grid formation around their center."""
     center = army.center
     for i, unit in enumerate(army):
         offset_x = (i % 3 - 1) * 3.0
         offset_y = (i // 3 - 1) * 3.0
         unit.move(center + (offset_x, offset_y))
-    return "HOLD_POSITION"
 
 
 def retreat(bot: BotAI, army, enemies, directive: Directive):
@@ -188,22 +186,17 @@ def register_directive(name: str, handler) -> None:
     DIRECTIVE_REGISTRY[name] = handler
 
 
-async def execute_directive(bot: BotAI, directive, fallback: str = "HOLD_POSITION"):
+def execute_directive(bot: BotAI, directive, fallback: str = "HOLD_POSITION") -> None:
     """
     Translate a named directive into python-sc2 unit actions.
-    Runs every game step using the most recently cached directive.
-
-    Returns an optional str: if a handler returns a directive name (e.g. SPREAD
-    returning 'HOLD_POSITION'), the caller should switch to that directive.
+    Called once when a new LLM response arrives — not repeated each game step.
     """
     all_army = bot.units
-
     if not all_army:
-        return None
+        return
 
     enemies = bot.enemy_units.visible
 
-    # Accept either a Directive object or a raw string name.
     if isinstance(directive, Directive):
         directive_name = directive.name
     else:
@@ -214,12 +207,12 @@ async def execute_directive(bot: BotAI, directive, fallback: str = "HOLD_POSITIO
 
     handler = DIRECTIVE_REGISTRY.get(directive_name)
     if handler is not None:
-        return handler(bot, army, enemies, directive)
+        handler(bot, army, enemies, directive)
+        return
 
-    # Directive not found — warn and attempt the fallback.
     fallback_handler = DIRECTIVE_REGISTRY.get(fallback)
     if fallback_handler is not None:
         console.warn(f"directive '{directive_name}' not in registry — falling back to '{fallback}'.")
         fallback_handler(bot, army, enemies, directive)
     else:
-        console.warn(f"directive '{directive_name}' not in registry and fallback '{fallback}' is also not registered. No action taken.")
+        console.warn(f"directive '{directive_name}' not in registry and fallback '{fallback}' also not registered.")

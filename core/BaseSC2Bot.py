@@ -1,6 +1,6 @@
 from obs_raw_text import obs_raw_text
 from execute_directive import execute_directive, get_directive_registry
-from directive import Directive, normalize_directive
+from directive import Directive, normalize_directives
 from settings import get_settings
 from map_loader import load_map_scenario
 from clustering import ClusterTracker
@@ -41,9 +41,6 @@ class BaseSC2Bot(BotAI):
         # Settings are loaded from .env — see settings.py and TacBenchSettings.
         self._apply_settings()
 
-        # Initialise to fallback directive until the first LLM call completes.
-        self.current_directive = Directive(name=self.FALLBACK_DIRECTIVE, reasoning="startup default")
-
         # Cluster tracking — updated every cluster_track_interval game steps.
         # Stores (friendly_ground, friendly_air, enemy_ground, enemy_air).
         self._cluster_tracker = ClusterTracker()
@@ -70,6 +67,7 @@ class BaseSC2Bot(BotAI):
         self.MODEL_NAME            = settings.model_name
         self.CLUSTER_TRACK_INTERVAL = settings.cluster_track_interval
         self.CLUSTER_RADIUS        = settings.cluster_radius
+        self.SHOW_LLM_PROMPT       = settings.show_llm_prompt
         self.SHOW_HISTORY          = settings.show_history
         self.HISTORY_LENGTH        = settings.history_length
 
@@ -194,11 +192,6 @@ class BaseSC2Bot(BotAI):
 
                 self._schedule_llm_call(self.step_count, battlefield)
 
-        # Every step: execute current cached directive.
-        # A handler may return a directive name to auto-transition (e.g. SPREAD → HOLD_POSITION).
-        switch_to = await execute_directive(self, self.current_directive, fallback=self.FALLBACK_DIRECTIVE)
-        if switch_to:
-            self.current_directive = Directive(name=switch_to, reasoning="auto-transition from SPREAD")
 
 
     async def on_end(self, game_result: Result):
@@ -225,9 +218,23 @@ class BaseSC2Bot(BotAI):
         """
         Persist a JSONL log for this run. Idempotent — safe to call from
         both on_step (win/loss detection) and on_end (engine callback).
+        Appends a final_state snapshot of the battlefield at the moment of ending.
         """
         if self._episode_log_written:
             return
+
+        # Snapshot the battlefield at end-of-game before writing.
+        # Cluster state may be stale if the game ended mid-cycle, so refresh it.
+        self._cluster_state = self._cluster_tracker.update(
+            self, self.step_count, self.CLUSTER_RADIUS
+        )
+        final_obs = obs_raw_text(self, self.step_count)
+        self.episode_log.append({
+            "type": "final_state",
+            "step": self.step_count,
+            "outcome": outcome,
+            "battlefield": final_obs.splitlines(),
+        })
 
         now = datetime.now()
         formatted_now = now.strftime("%Y-%m-%d__%H_%M_%S")
@@ -236,11 +243,13 @@ class BaseSC2Bot(BotAI):
 
         log_path = Path(f"./logs/{formatted_now}__{self.name}__{self.game_info.map_name}__log.jsonl")
         with open(log_path, "w", encoding="utf-8") as f:
+            # Count only llm_call entries for the summary (excludes the final_state snapshot).
+            llm_calls = sum(1 for e in self.episode_log if e.get("type") == "llm_call")
             summary = {
                 "type": "summary",
                 "outcome": outcome,
                 "total_steps": self.step_count,
-                "total_llm_calls": len(self.episode_log),
+                "total_llm_calls": llm_calls,
                 "total_llm_failures": self.llm_failures,
                 "config": {
                     "MODEL_NAME": self.MODEL_NAME,
@@ -273,19 +282,53 @@ class BaseSC2Bot(BotAI):
         entries = self.episode_log[-length:]
         lines = [f"RECENT HISTORY (last {len(entries)} decision{'s' if len(entries) != 1 else ''}):"]
         for e in entries:
-            # Extract unit counts from stored battlefield lines where available.
-            your_count = "?"
-            enemy_count = "?"
+            # Extract unit counts from stored battlefield lines.
+            your_count = 0
+            enemy_count = 0
+            in_your = in_enemy = False
             for line in (e.get("battlefield") or []):
-                if line.startswith("YOUR UNITS("):
-                    your_count = line.split("(")[1].split(")")[0]
+                if line == "YOUR FORCES:":
+                    in_your, in_enemy = True, False
+                elif line == "ENEMY FORCES:":
+                    in_your, in_enemy = False, True
+                elif line.startswith("YOUR UNITS("):
+                    your_count = int(line.split("(")[1].split(")")[0])
                 elif line.startswith("ENEMY UNITS("):
-                    enemy_count = line.split("(")[1].split(")")[0]
-            reasoning = e.get("reasoning") or ""
-            reasoning_str = f'  "{reasoning}"' if reasoning else ""
+                    enemy_count = int(line.split("(")[1].split(")")[0])
+                elif in_your and "]:" in line and line.strip().startswith("GROUP "):
+                    try:
+                        your_count += int(line.split("]:")[1].strip().split("u")[0])
+                    except (IndexError, ValueError):
+                        pass
+                elif in_enemy and "]:" in line and line.strip().startswith("CLUSTER "):
+                    try:
+                        enemy_count += int(line.split("]:")[1].strip().split("u")[0])
+                    except (IndexError, ValueError):
+                        pass
+            your_str  = str(your_count)  if your_count  else "?"
+            enemy_str = str(enemy_count) if enemy_count else "?"
+
+            # Build compact directive summary — handles both new list format and legacy single-directive.
+            raw_directives = e.get("directives")
+            if raw_directives is not None:
+                cmd_parts = []
+                for d in raw_directives:
+                    name = d.get("directive", "?")
+                    units = d.get("units")
+                    units_str = f'[{",".join(str(u) for u in units)}]' if units else ""
+                    tx, ty = d.get("target_x"), d.get("target_y")
+                    coord_str = f"→({tx:.0f},{ty:.0f})" if tx is not None and ty is not None else ""
+                    reasoning = d.get("reasoning") or ""
+                    r_str = f' "{reasoning}"' if reasoning else ""
+                    cmd_parts.append(f"{name}{units_str}{coord_str}{r_str}")
+                cmd_str = "  |  ".join(cmd_parts) if cmd_parts else "(no commands)"
+            else:
+                # Legacy log entry
+                tx, ty = e.get("target_x"), e.get("target_y")
+                cmd_str = f"{e.get('directive', '?')}@({tx}, {ty})"
+
             lines.append(
-                f"[Step {e['step']:>4}] YOUR UNITS {your_count},  ENEMY UNITS {enemy_count},  "
-                f"{e['directive']}@({e['target_x']}, {e['target_y']}) {reasoning_str}"
+                f"[Step {e['step']:>4}] YOUR UNITS {your_str},  ENEMY UNITS {enemy_str},  {cmd_str}"
             )
         return "\n".join(lines)
 
@@ -317,49 +360,68 @@ class BaseSC2Bot(BotAI):
 
     def _apply_llm_result(self, result: dict):
         """
-        Update the cached directive and emit a log entry from a completed LLM result dict.
-        If the LLM call itself failed (timeout / exception), skip normalization and
-        use the fallback directive directly with the real error message attached.
+        Parse the LLM response into a list of directives, execute each one immediately,
+        and emit a log entry.  Directives are issued once — not repeated each step.
         """
-        if result["error"]:
-            # LLM call failed before returning output — skip normalization.
-            directive = Directive(
-                name=self.FALLBACK_DIRECTIVE,
-                raw=result["raw"],
-                error=result["error"],
-                fallback_used=True,
-            )
-        else:
-            directive = normalize_directive(
-                result["raw"],
-                allowed=get_directive_registry().keys(),
-                fallback=self.FALLBACK_DIRECTIVE,
-            )
+        raw       = result["raw"]
+        llm_error = result["error"]
 
-        self.current_directive = directive
-
-        if directive.fallback_used:
+        if llm_error:
+            # The LLM call itself failed (network error, timeout, etc.) — no commands issued.
             self.llm_failures += 1
+            self.episode_log.append({
+                "type": "llm_call",
+                "step": result["step"],
+                "battlefield": result["battlefield"].splitlines() if result["battlefield"] else [],
+                "directives": [],
+                "raw": raw,
+                "llm_latency_ms": result["latency_ms"],
+                "llm_error": llm_error,
+                "fallback_used": True,
+            })
+            console.warn(f"LLM call failed at step {result['step']}: {llm_error}")
+            return
+
+        directives = normalize_directives(
+            raw,
+            allowed=get_directive_registry().keys(),
+            fallback=self.FALLBACK_DIRECTIVE,
+        )
+
+        any_fallback = any(d.fallback_used for d in directives)
+        if any_fallback:
+            self.llm_failures += 1
+
+        # Execute each directive exactly once.
+        for directive in directives:
+            execute_directive(self, directive, fallback=self.FALLBACK_DIRECTIVE)
 
         self.episode_log.append({
             "type": "llm_call",
             "step": result["step"],
             "battlefield": result["battlefield"].splitlines() if result["battlefield"] else [],
-            "directive": directive.name,
-            "reasoning": directive.reasoning,
-            "target_x": directive.target_x,
-            "target_y": directive.target_y,
-            "units": directive.units,
-            "target_unit": directive.target_unit,
-            "raw": result["raw"],
+            "directives": [
+                {
+                    "directive":     d.name,
+                    "units":         d.units,
+                    "target_x":      d.target_x,
+                    "target_y":      d.target_y,
+                    "target_unit":   d.target_unit,
+                    "reasoning":     d.reasoning,
+                    "fallback_used": d.fallback_used,
+                    "error":         d.error,
+                }
+                for d in directives
+            ],
+            "raw": raw,
             "llm_latency_ms": result["latency_ms"],
-            "llm_error": directive.error,
-            "fallback_used": directive.fallback_used,
+            "llm_error": None,
+            "fallback_used": any_fallback,
         })
 
-        console.print_directive(
+        console.print_directives(
             step=result["step"],
-            directive=directive,
+            directives=directives,
             friendly=len(self.units),
             enemy=len(self.enemy_units.visible),
             latency_ms=result["latency_ms"],
@@ -373,6 +435,9 @@ class BaseSC2Bot(BotAI):
         slow models cannot cascade into repeated failures. The scheduling
         guard in _schedule_llm_call prevents overlapping calls.
         """
+        if self.SHOW_LLM_PROMPT:
+            console.print_llm_prompt(step, self.MODEL_NAME, battlefield)
+
         start = time.perf_counter()
         error = None
         raw = None

@@ -6,12 +6,8 @@ _BRIEFING = """\
 OBJECTIVE: Defend all of your Supply Depots from enemy attack waves.
 You win when all enemy units are defeated.
 You lose immediately if ANY Supply Depot is destroyed — losing even one ends the mission.
-
-CRITICAL RULES:
-- If you see a "!! STRUCTURE ALERTS !!" section, a Supply Depot is actively taking damage RIGHT NOW.
-  You MUST redirect your nearest units to defend it immediately — this is your highest priority.
-- HP changes labeled "(lost N% HP since last report)" mean that unit or structure took damage
-  between this report and the previous one.  Negative HP on a Supply Depot is an emergency.\
+Defend your supply depots proactively and at all costs! 
+Pay extra attention for alerts that a SupplyDepot has lost HP since last report.
 """
 
 

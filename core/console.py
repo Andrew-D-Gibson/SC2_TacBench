@@ -127,40 +127,37 @@ def print_streaming_end():
     print()
 
 
-def print_directive(step: int, directive, friendly: int, enemy: int, latency_ms: int):
+def print_directives(step: int, directives: list, friendly: int, enemy: int, latency_ms: int):
     """
-    Colored summary for a resolved directive, printed after each LLM call completes.
+    Colored summary for a list of directives issued in a single LLM call.
     """
-    name = directive.name
-    col  = _directive_color(name, directive.fallback_used)
+    any_fallback = any(d.fallback_used for d in directives)
+    first_col = _directive_color(directives[0].name if directives else "HOLD_POSITION", any_fallback)
 
-    header_tag = f" DIRECTIVE @ Step {step}  ──  {latency_ms:,} ms "
+    header_tag = f" DIRECTIVES @ Step {step}  ──  {latency_ms:,} ms "
     pad = max(0, _W - len(header_tag))
-    print(f"\n{BOLD}{col}{'▶' * 2}{header_tag}{'─' * pad}{RESET}")
+    print(f"\n{BOLD}{first_col}{'▶' * 2}{header_tag}{'─' * pad}{RESET}")
 
-    # Main directive name
-    prefix = f"{BOLD}{col}  ► {RESET}"
-    print(f"{prefix}{BOLD}{col}{name}{RESET}", end="")
-    if directive.target_x is not None and directive.target_y is not None:
-        print(f"  {DIM}→ ({directive.target_x:.1f}, {directive.target_y:.1f}){RESET}", end="")
-    print()
+    for directive in directives:
+        name = directive.name
+        col  = _directive_color(name, directive.fallback_used)
+        units_str = f' [{",".join(str(u) for u in directive.units)}]' if directive.units else " [ALL]"
+        print(f"  {BOLD}{col}► {name}{units_str}{RESET}", end="")
+        if directive.target_x is not None and directive.target_y is not None:
+            print(f"  {DIM}→ ({directive.target_x:.1f}, {directive.target_y:.1f}){RESET}", end="")
+        print()
+        if directive.reasoning:
+            r = _trunc(directive.reasoning, _W - 7)
+            print(f"    {DIM}\"{r}\"{RESET}")
+        if directive.error:
+            print(f"    {BOLD}{RED}⚠  {directive.error}{RESET}")
+        elif directive.fallback_used:
+            print(f"    {YELLOW}⚠  fallback used{RESET}")
 
-    # Reasoning
-    if directive.reasoning:
-        r = _trunc(directive.reasoning, _W - 5)
-        print(f"  {DIM}\"{r}\"{RESET}")
-
-    # Error / fallback notice
-    if directive.error:
-        print(f"  {BOLD}{RED}⚠  {directive.error}{RESET}")
-    elif directive.fallback_used:
-        print(f"  {YELLOW}⚠  fallback used{RESET}")
-
-    # Battle stats
     friendly_str = f"{BRIGHT_CYAN}Friendly: {friendly}{RESET}"
     enemy_str    = f"{BRIGHT_RED}Enemy visible: {enemy}{RESET}"
     print(f"  {friendly_str}    {enemy_str}")
-    print(f"{col}{'─' * _W}{RESET}\n")
+    print(f"{first_col}{'─' * _W}{RESET}\n")
 
 
 def print_game_over(outcome: str, total_steps: int, llm_calls: int):
