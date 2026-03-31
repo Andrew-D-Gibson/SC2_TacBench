@@ -21,6 +21,7 @@ from pathlib import Path
 
 import meta_reasoner
 import file_editor
+import orc_console
 from config import (
     EDITABLE_FILES,
     LOGS_DIR,
@@ -48,12 +49,12 @@ def git_baseline():
     """Commit any dirty working tree so we have a clean base before the loop."""
     status = _git("status", "--porcelain")
     if status:
-        print("[git] Committing dirty working tree as baseline...")
+        orc_console.git_msg("Committing dirty working tree as baseline…")
         _git("add", "-A")
         _git("commit", "-m", "orchestrator: baseline before run")
-        print("[git] Baseline committed.")
+        orc_console.git_msg("Baseline committed.")
     else:
-        print("[git] Working tree clean — no baseline commit needed.")
+        orc_console.git_msg("Working tree clean — no baseline commit needed.")
 
 
 def git_stash():
@@ -80,15 +81,10 @@ def git_commit(message: str):
 # ── Logging ────────────────────────────────────────────────────────────────────
 
 def _log_event(event: dict):
-    """Append one JSON line to orchestrator_log.jsonl and print a summary line."""
+    """Append one JSON line to orchestrator_log.jsonl."""
     event["timestamp"] = datetime.now().isoformat()
     with open(ORCHESTRATOR_LOG_PATH, "a", encoding="utf-8") as f:
         f.write(json.dumps(event) + "\n")
-
-
-def _print_status(msg: str):
-    ts = datetime.now().strftime("%H:%M:%S")
-    print(f"[{ts}] {msg}", flush=True)
 
 
 # ── Map runner ─────────────────────────────────────────────────────────────────
@@ -126,7 +122,7 @@ def run_one_map(map_id: str) -> dict:
     env = os.environ.copy()
     env["TACBENCH_MAP"] = map_id
 
-    _print_status(f"Running map '{map_id}'...")
+    orc_console.map_start(map_id)
     start = time.time()
     try:
         proc = subprocess.run(
@@ -135,10 +131,10 @@ def run_one_map(map_id: str) -> dict:
             cwd=PROJECT_ROOT,
         )
         elapsed = time.time() - start
-        _print_status(f"Map '{map_id}' finished in {elapsed:.0f}s (exit code {proc.returncode}).")
+        orc_console.map_done(map_id, elapsed, proc.returncode)
     except Exception as exc:
         error_msg = f"subprocess.run raised {type(exc).__name__}: {exc}"
-        _print_status(f"ERROR running '{map_id}': {error_msg}")
+        orc_console.map_error(map_id, error_msg)
         return {
             "map_id": map_id, "won": False, "total_steps": 0,
             "outcome": "ERROR", "log_path": None, "error": error_msg,
@@ -228,35 +224,30 @@ def _results_summary(results: dict) -> str:
 # ── Main loop ──────────────────────────────────────────────────────────────────
 
 def main():
-    _print_status("=== SC2 Prompt Optimization Orchestrator starting ===")
-    _print_status(f"Maps: {MAP_LIST}")
-    _print_status(f"Max iterations: {MAX_ITERATIONS}  |  Max stagnant: {MAX_STAGNANT_ITERATIONS}")
+    orc_console.startup(MAP_LIST, MAX_ITERATIONS, MAX_STAGNANT_ITERATIONS)
 
     # Ensure clean git state before we start touching files
     try:
         git_baseline()
     except subprocess.CalledProcessError as exc:
-        _print_status(f"[git] WARNING: git_baseline failed: {exc}. Continuing anyway.")
+        orc_console.git_msg(f"WARNING: git_baseline failed: {exc}. Continuing anyway.")
 
     run_history: dict = {m: {"best_steps": 0, "best_result": "LOSS"} for m in MAP_LIST}
     stagnant_count = 0
     stash_pending  = False
 
     for iteration in range(1, MAX_ITERATIONS + 1):
-        _print_status(f"\n{'='*60}")
-        _print_status(f"ITERATION {iteration}/{MAX_ITERATIONS}  (stagnant: {stagnant_count}/{MAX_STAGNANT_ITERATIONS})")
-        _print_status(f"{'='*60}")
+        orc_console.iteration_header(iteration, MAX_ITERATIONS, stagnant_count, MAX_STAGNANT_ITERATIONS)
 
         # ── Stop: stagnant ─────────────────────────────────────────────────────
         if stagnant_count >= MAX_STAGNANT_ITERATIONS:
-            msg = f"No improvement for {MAX_STAGNANT_ITERATIONS} consecutive iterations — stopping."
-            _print_status(msg)
             _log_event({"event": "stop", "iteration": iteration, "reason": "stagnant"})
+            orc_console.stop("stagnant")
             return
 
         # ── Run all maps ───────────────────────────────────────────────────────
         results = run_all_maps()
-        _print_status(f"Results: {_results_summary(results)}")
+        orc_console.results_table(results)
         _log_event({"event": "run_complete", "iteration": iteration, "results": {
             m: {"won": r["won"], "total_steps": r["total_steps"], "outcome": r["outcome"],
                 "error": r.get("error")}
@@ -265,33 +256,33 @@ def main():
 
         # ── Stop: all won ──────────────────────────────────────────────────────
         if all_won(results):
-            _print_status("All maps WON — optimization complete!")
             _log_event({"event": "stop", "iteration": iteration, "reason": "all_maps_won"})
             try:
                 git_commit(f"orchestrator iter {iteration}: all maps won")
             except subprocess.CalledProcessError:
                 pass
+            orc_console.stop("all_maps_won")
             return
 
         # ── Build meta-reasoner context ────────────────────────────────────────
         failed_maps = [m for m, r in results.items() if not r["won"]]
-        _print_status(f"Failed maps: {failed_maps}. Calling meta-reasoner...")
+        orc_console.status(f"Failed maps: [bold]{', '.join(failed_maps)}[/bold] — calling meta-reasoner…")
 
-        meta_decision = meta_reasoner.analyze(failed_maps, results, run_history)
-        _print_status(f"Meta decision: action={meta_decision['action']} | {meta_decision['reason'][:100]}")
+        decision = meta_reasoner.analyze(failed_maps, results, run_history)
+        orc_console.meta_decision_panel(decision["action"], decision["reason"])
         _log_event({"event": "meta_decision", "iteration": iteration,
-                    "action": meta_decision["action"], "reason": meta_decision["reason"],
-                    "changes": meta_decision.get("changes", [])})
+                    "action": decision["action"], "reason": decision["reason"],
+                    "changes": decision.get("changes", [])})
 
         # ── Stop: missing info ─────────────────────────────────────────────────
-        if meta_decision["action"] == "stop_missing_info":
-            _print_status(f"Meta-reasoner says stop (missing info): {meta_decision['reason']}")
+        if decision["action"] == "stop_missing_info":
             _log_event({"event": "stop", "iteration": iteration, "reason": "missing_info"})
+            orc_console.stop("missing_info")
             return
 
         # ── Noop (parse failure) ───────────────────────────────────────────────
-        if meta_decision["action"] == "noop":
-            _print_status("Meta-reasoner returned noop — skipping iteration.")
+        if decision["action"] == "noop":
+            orc_console.status("[dim]Meta-reasoner returned noop — skipping iteration.[/dim]")
             stagnant_count += 1
             continue
 
@@ -300,14 +291,14 @@ def main():
             git_stash()
             stash_pending = True
         except subprocess.CalledProcessError as exc:
-            _print_status(f"[git] stash failed: {exc} — skipping iteration.")
+            orc_console.git_msg(f"stash failed: {exc} — skipping iteration.")
             stagnant_count += 1
             continue
 
-        edit_ok = file_editor.apply_changes(meta_decision.get("changes", []))
+        edit_ok = file_editor.apply_changes(decision.get("changes", []))
 
         if not edit_ok:
-            _print_status("File edits failed — reverting stash.")
+            orc_console.status("[red]File edits failed — reverting stash.[/red]")
             git_stash_pop()
             stash_pending = False
             _log_event({"event": "iteration_reverted", "iteration": iteration, "reason": "edit_failed"})
@@ -315,9 +306,9 @@ def main():
             continue
 
         # ── Re-run maps with edited files ──────────────────────────────────────
-        _print_status("Edits applied. Re-running maps...")
+        orc_console.status("Edits applied — re-running maps…")
         new_results = run_all_maps()
-        _print_status(f"New results: {_results_summary(new_results)}")
+        orc_console.results_table(new_results, title="Results After Edit")
         _log_event({"event": "run_complete", "iteration": iteration, "phase": "post_edit",
                     "results": {m: {"won": r["won"], "total_steps": r["total_steps"]}
                                 for m, r in new_results.items()}})
@@ -325,14 +316,14 @@ def main():
         # ── Stop: all won after edit ───────────────────────────────────────────
         if all_won(new_results):
             commit_msg = (
-                f"orchestrator iter {iteration}: {meta_decision['action']} — "
-                f"{meta_decision['reason'][:120]} — all maps won"
+                f"orchestrator iter {iteration}: {decision['action']} — "
+                f"{decision['reason'][:120]} — all maps won"
             )
             git_commit(commit_msg)
             git_stash_drop()
             stash_pending = False
-            _print_status("All maps WON after edit — optimization complete!")
             _log_event({"event": "stop", "iteration": iteration, "reason": "all_maps_won"})
+            orc_console.stop("all_maps_won")
             return
 
         # ── Keep or revert ─────────────────────────────────────────────────────
@@ -341,37 +332,35 @@ def main():
 
         if improved:
             commit_msg = (
-                f"orchestrator iter {iteration}: {meta_decision['action']} — "
-                f"{meta_decision['reason'][:120]}"
+                f"orchestrator iter {iteration}: {decision['action']} — "
+                f"{decision['reason'][:120]}"
             )
             git_commit(commit_msg)
             git_stash_drop()
             stash_pending = False
             _update_run_history(run_history, new_results)
             stagnant_count = 0
-            _print_status(f"IMPROVEMENT — changes committed. Delta: {delta}")
+            orc_console.kept(delta)
             _log_event({"event": "iteration_kept", "iteration": iteration,
                         "improvement_per_map": delta})
         else:
             git_stash_pop()
             stash_pending = False
             stagnant_count += 1
-            _print_status(f"No improvement (delta: {delta}) — changes reverted.")
+            orc_console.reverted(delta, "no improvement")
             _log_event({"event": "iteration_reverted", "iteration": iteration,
                         "reason": "no_improvement", "delta": delta})
 
     # ── Stop: max iterations ───────────────────────────────────────────────────
-    _print_status(f"Reached MAX_ITERATIONS ({MAX_ITERATIONS}) — stopping.")
-    _print_status("Final run history:")
-    for map_id, h in run_history.items():
-        _print_status(f"  {map_id}: best={h['best_steps']} steps, result={h['best_result']}")
     _log_event({"event": "stop", "iteration": MAX_ITERATIONS, "reason": "max_iterations",
                 "run_history": run_history})
+    orc_console.stop("max_iterations")
+    orc_console.run_history_table(run_history)
 
 
 if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        print("\n[orchestrator] Interrupted by user. Git state may have a pending stash — run `git stash list` to check.")
+        orc_console.status("\n[yellow]Interrupted by user.[/yellow] Git state may have a pending stash — run [bold]git stash list[/bold] to check.")
         sys.exit(0)

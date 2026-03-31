@@ -18,6 +18,8 @@ import re
 
 import requests
 
+import orc_console
+
 from config import (
     ANTHROPIC_API_KEY,
     CLAUDE_META_MODEL,
@@ -138,7 +140,7 @@ def _call_claude(system: str, user_message: str, label: str, max_tokens: int = 4
         )
 
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
-    print(f"\n  [{label}]\n", flush=True)
+    orc_console.llm_stream_header(label)
     parts = []
     with client.messages.stream(
         model=CLAUDE_META_MODEL,
@@ -172,7 +174,7 @@ def _call_ollama(system: str, user_message: str, label: str, think: bool = True)
     )
     response.raise_for_status()
 
-    print(f"\n  [{label}]\n", flush=True)
+    orc_console.llm_stream_header(label)
     parts = []
     for line in response.iter_lines():
         if not line:
@@ -320,15 +322,15 @@ def analyze(
     game_context = _build_game_context(failed_maps, all_results, run_history)
 
     # ── Phase 1: Analysis ──────────────────────────────────────────────────────
-    print(f"  [meta_reasoner] Phase 1: analyzing match failures... (backend: {META_REASONER_BACKEND})")
+    orc_console.meta_phase(1, "Analyzing match failures", META_REASONER_BACKEND)
     try:
         analysis = _call_llm(_ANALYSIS_SYSTEM, game_context, "meta_reasoner / analysis")
     except Exception as exc:
-        print(f"  [meta_reasoner] Analysis call failed: {exc}")
+        orc_console.meta_error(f"Analysis call failed: {exc}")
         return {"action": "noop", "reason": f"analysis phase failed: {exc}", "changes": []}
 
     # ── Phase 2: Decision ──────────────────────────────────────────────────────
-    print("  [meta_reasoner] Phase 2: deciding what to change...")
+    orc_console.meta_phase(2, "Deciding what to change", META_REASONER_BACKEND)
     decision_context = _build_decision_context(analysis)
 
     for attempt in range(2):
@@ -338,12 +340,12 @@ def analyze(
             raw = _call_llm(_DECISION_SYSTEM, decision_context, "meta_reasoner / decision", think=False)
             return _parse_decision(raw)
         except json.JSONDecodeError as exc:
-            print(f"  [meta_reasoner] JSON parse error (attempt {attempt+1}): {exc}")
+            orc_console.meta_error(f"JSON parse error (attempt {attempt+1}): {exc}")
         except ValueError as exc:
-            print(f"  [meta_reasoner] Validation error (attempt {attempt+1}): {exc}")
+            orc_console.meta_error(f"Validation error (attempt {attempt+1}): {exc}")
         except Exception as exc:
-            print(f"  [meta_reasoner] Ollama call failed (attempt {attempt+1}): {exc}")
+            orc_console.meta_error(f"LLM call failed (attempt {attempt+1}): {exc}")
             break
 
-    print("  [meta_reasoner] Decision phase failed after 2 attempts — skipping iteration.")
+    orc_console.meta_error("Decision phase failed after 2 attempts — skipping iteration.")
     return {"action": "noop", "reason": "decision phase failed after 2 attempts", "changes": []}

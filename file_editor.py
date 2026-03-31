@@ -15,6 +15,7 @@ import tempfile
 
 import requests
 
+import orc_console
 from config import (
     ANTHROPIC_API_KEY,
     CLAUDE_META_MODEL,
@@ -123,18 +124,18 @@ def apply_changes(changes: list[dict]) -> bool:
     Files that fail are not written; files that pass are written immediately.
     """
     if not changes:
-        print("  [file_editor] No changes to apply.")
+        orc_console.status("[dim]No file changes to apply.[/dim]")
         return False
 
     all_ok = True
 
     for change in changes:
-        rel_path    = change.get("file", "").strip()
+        rel_path     = change.get("file", "").strip()
         instructions = change.get("instructions", "").strip()
 
         # ── Whitelist check ────────────────────────────────────────────────────
         if rel_path not in EDITABLE_FILES:
-            print(f"  [file_editor] BLOCKED: '{rel_path}' is not in EDITABLE_FILES whitelist.")
+            orc_console.edit_blocked(rel_path)
             all_ok = False
             continue
 
@@ -145,16 +146,16 @@ def apply_changes(changes: list[dict]) -> bool:
             with open(abs_path, encoding="utf-8") as f:
                 current_content = f.read()
         except OSError as exc:
-            print(f"  [file_editor] Cannot read '{rel_path}': {exc}")
+            orc_console.edit_fail(rel_path, f"cannot read file: {exc}")
             all_ok = False
             continue
 
         # ── Editor call ────────────────────────────────────────────────────────
-        print(f"  [file_editor] Editing '{rel_path}'...")
+        orc_console.edit_start(rel_path)
         try:
             new_content = _call_editor(instructions, current_content)
         except Exception as exc:
-            print(f"  [file_editor] Editor call failed for '{rel_path}': {exc}")
+            orc_console.edit_fail(rel_path, f"editor call failed: {exc}")
             all_ok = False
             continue
 
@@ -171,13 +172,13 @@ def apply_changes(changes: list[dict]) -> bool:
         # ── Validate ───────────────────────────────────────────────────────────
         ok, err = _validate(rel_path, new_content)
         if not ok:
-            print(f"  [file_editor] Validation FAILED for '{rel_path}': {err} — not written.")
+            orc_console.edit_fail(rel_path, f"validation failed: {err}")
             all_ok = False
             continue
 
         # ── Write ──────────────────────────────────────────────────────────────
         with open(abs_path, "w", encoding="utf-8") as f:
             f.write(new_content)
-        print(f"  [file_editor] '{rel_path}' written successfully.")
+        orc_console.edit_ok(rel_path)
 
     return all_ok
