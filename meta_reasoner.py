@@ -48,6 +48,22 @@ FAILURE ANALYSIS
   it should have held? Did it ignore a critical enemy unit? Did it issue the wrong
   directive for the matchup?
 
+INSTRUCTION FOLLOWING
+  Examine whether the bot correctly interpreted and followed the format and intent of
+  its instructions. Check for each of these failure modes:
+  - FORMAT FAILURES: Look for log entries where "fallback_used" is true or "llm_error"
+    is set. These mean the model returned something unparseable or used an invalid
+    directive name. Count how many steps this happened and what fraction of total calls
+    it represents.
+  - REASONING/ACTION MISMATCH: Look at the "reasoning" field alongside the chosen
+    "directive". Does the stated reasoning support the action taken? Flag cases where
+    the bot said it was doing one thing but issued a different directive.
+  - IGNORED CONTEXT: Compare the battlefield observation ("battlefield" field) with the
+    directive chosen. Did the prompt contain urgent information (e.g. a structure under
+    attack, a numerical advantage) that the bot failed to act on? Cite specific steps.
+  - OUTPUT FORMAT NOTE: If format failures are frequent (>20% of calls), this is likely
+    a prompt engineering problem and should be the top recommendation.
+
 ROOT CAUSE
   State the single most important reason the bot lost. This should be something that,
   if fixed, would most plausibly change the outcome.

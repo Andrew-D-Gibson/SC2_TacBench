@@ -52,17 +52,12 @@ OLLAMA_TIMEOUT  = 600                      # seconds; meta-reasoning is slower t
 # or the environment) to use the Claude API instead of Ollama for both the
 # analysis and decision phases.
 
-META_REASONER_BACKEND = os.environ.get("META_REASONER_BACKEND", "ollama")  # "ollama" | "claude"
-CLAUDE_META_MODEL     = os.environ.get("CLAUDE_META_MODEL", "claude-sonnet-4-6")
-ANTHROPIC_API_KEY     = os.environ.get("ANTHROPIC_API_KEY")
+META_REASONER_BACKEND = "claude"          # "ollama" | "claude"
+CLAUDE_META_MODEL     = "claude-sonnet-4-6"
+ANTHROPIC_API_KEY     = os.environ.get("ANTHROPIC_API_KEY")  # set in .env or shell
 
 # ── Loop limits ────────────────────────────────────────────────────────────────
 
 MAX_ITERATIONS          = 1
 MAX_STAGNANT_ITERATIONS = 5
 
-# ── Map runner timeout ─────────────────────────────────────────────────────────
-# How long (seconds) to wait for a single map run before treating it as a crash.
-# Set high enough to cover your longest expected game. 600 = 10 minutes.
-
-MAP_RUN_TIMEOUT = 120

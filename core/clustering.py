@@ -33,7 +33,7 @@ _RATIO_DISADVANTAGED = 0.5   # ratio above which forces are DISADVANTAGED (below
 
 # ── Threat level distance multipliers (relative to enemy weapon range) ─────────
 
-_CONTACT_RANGE_FACTOR = 1.1  # enemy weapon just about reaches us → CONTACT
+_CONTACT_RANGE_FACTOR = 1.5  # enemy weapon just about reaches us → CONTACT
 _THREAT_RANGE_FACTOR  = 2.0  # closing fast → THREAT
 _NEARBY_RANGE_FACTOR  = 3.0  # visible but not imminent → NEARBY
 
