@@ -6,3 +6,6 @@
 {"event": "iteration_kept", "iteration": 1, "improvement_per_map": {"tacbench_01": 3, "tacbench_02": 25}, "timestamp": "2026-03-30T15:11:26.689429"}
 {"event": "stop", "iteration": 1, "reason": "max_iterations", "run_history": {"tacbench_01": {"best_steps": 59, "best_result": "LOSS"}, "tacbench_02": {"best_steps": 195, "best_result": "LOSS"}}, "timestamp": "2026-03-30T15:11:26.690432"}
 {"event": "run_complete", "iteration": 1, "phase": "post_edit", "results": {"tacbench_01": {"won": false, "total_steps": 54}, "tacbench_02": {"won": false, "total_steps": 110}}, "timestamp": "2026-03-30T15:28:31.948428"}
+{"event": "run_complete", "iteration": 1, "results": {"tacbench_01": {"won": false, "total_steps": 0, "outcome": "TIMEOUT", "error": "subprocess timeout after 120s"}, "tacbench_02": {"won": false, "total_steps": 110, "outcome": "LOSS", "error": null}}, "timestamp": "2026-03-31T12:33:14.388579"}
+{"event": "meta_decision", "iteration": 1, "action": "noop", "reason": "decision phase failed after 2 attempts", "changes": [], "timestamp": "2026-03-31T12:34:47.726778"}
+{"event": "stop", "iteration": 1, "reason": "max_iterations", "run_history": {"tacbench_01": {"best_steps": 0, "best_result": "LOSS"}, "tacbench_02": {"best_steps": 0, "best_result": "LOSS"}}, "timestamp": "2026-03-31T12:34:47.727929"}

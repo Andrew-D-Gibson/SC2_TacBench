@@ -44,6 +44,15 @@ OLLAMA_MODEL    = "qwen3:8b"               # meta-reasoner model
 OLLAMA_BASE_URL = "http://localhost:11434"
 OLLAMA_TIMEOUT  = 600                      # seconds; meta-reasoning is slower than playing
 
+# ── Meta-reasoner backend ──────────────────────────────────────────────────────
+# Set META_REASONER_BACKEND="claude" (and ensure ANTHROPIC_API_KEY is in .env
+# or the environment) to use the Claude API instead of Ollama for both the
+# analysis and decision phases.
+
+META_REASONER_BACKEND = os.environ.get("META_REASONER_BACKEND", "ollama")  # "ollama" | "claude"
+CLAUDE_META_MODEL     = os.environ.get("CLAUDE_META_MODEL", "claude-sonnet-4-6")
+ANTHROPIC_API_KEY     = os.environ.get("ANTHROPIC_API_KEY")
+
 # ── Loop limits ────────────────────────────────────────────────────────────────
 
 MAX_ITERATIONS          = 1

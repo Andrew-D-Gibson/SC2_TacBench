@@ -119,6 +119,33 @@ def _parse_log_summary(log_path: Path) -> dict:
     return summary
 
 
+def _write_timeout_log(map_id: str, elapsed: float) -> Path:
+    """
+    Write a minimal JSONL summary for a map killed by the wall-clock timeout.
+    Gives the meta-reasoner something to read even when the game never finished.
+    """
+    import json as _json
+    logs_dir = Path(LOGS_DIR)
+    logs_dir.mkdir(parents=True, exist_ok=True)
+    formatted_now = datetime.now().strftime("%Y-%m-%d__%H_%M_%S")
+    log_path = logs_dir / f"{formatted_now}__OllamaBot__{map_id}__log.jsonl"
+    summary = {
+        "type":                "summary",
+        "outcome":             "TIMEOUT",
+        "total_steps":         0,
+        "total_llm_calls":     0,
+        "total_llm_failures":  0,
+        "note": (
+            f"Orchestrator wall-clock timeout after {elapsed:.0f}s "
+            f"(limit: {MAP_RUN_TIMEOUT}s) — no in-game state captured."
+        ),
+        "config": {},
+    }
+    with open(log_path, "w", encoding="utf-8") as f:
+        f.write(_json.dumps(summary, indent=4) + "\n")
+    return log_path
+
+
 def run_one_map(map_id: str) -> dict:
     """
     Run a single map via `python core/main.py` with TACBENCH_MAP injected.
@@ -140,10 +167,11 @@ def run_one_map(map_id: str) -> dict:
         _print_status(f"Map '{map_id}' finished in {elapsed:.0f}s (exit code {proc.returncode}).")
     except subprocess.TimeoutExpired:
         elapsed = time.time() - start
-        _print_status(f"Map '{map_id}' timed out after {elapsed:.0f}s.")
+        _print_status(f"Map '{map_id}' timed out after {elapsed:.0f}s — writing timeout log.")
+        log_path = _write_timeout_log(map_id, elapsed)
         return {
             "map_id": map_id, "won": False, "total_steps": 0,
-            "outcome": "TIMEOUT", "log_path": None,
+            "outcome": "TIMEOUT", "log_path": str(log_path),
             "error": f"subprocess timeout after {MAP_RUN_TIMEOUT}s",
         }
     except Exception as exc:

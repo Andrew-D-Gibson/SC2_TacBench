@@ -14,11 +14,15 @@ Returns a decision dict:
 
 import json
 import os
+import re
 
 import requests
 
 from config import (
+    ANTHROPIC_API_KEY,
+    CLAUDE_META_MODEL,
     EDITABLE_FILES,
+    META_REASONER_BACKEND,
     OLLAMA_BASE_URL,
     OLLAMA_MODEL,
     OLLAMA_TIMEOUT,
@@ -106,9 +110,34 @@ Only include files from the whitelist.\
 """
 
 
-# ── Ollama streaming call ──────────────────────────────────────────────────────
+# ── LLM callers ───────────────────────────────────────────────────────────────
 
-def _call_ollama(system: str, user_message: str, label: str) -> str:
+def _call_claude(system: str, user_message: str, label: str, max_tokens: int = 4096) -> str:
+    """Call the Anthropic Messages API with streaming. Prints tokens live."""
+    import anthropic
+
+    if not ANTHROPIC_API_KEY:
+        raise RuntimeError(
+            "META_REASONER_BACKEND=claude but ANTHROPIC_API_KEY is not set."
+        )
+
+    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    print(f"\n  [{label}]\n", flush=True)
+    parts = []
+    with client.messages.stream(
+        model=CLAUDE_META_MODEL,
+        max_tokens=max_tokens,
+        system=system,
+        messages=[{"role": "user", "content": user_message}],
+    ) as stream:
+        for text in stream.text_stream:
+            print(text, end="", flush=True)
+            parts.append(text)
+    print("\n", flush=True)
+    return "".join(parts)
+
+
+def _call_ollama(system: str, user_message: str, label: str, think: bool = True) -> str:
     """POST to Ollama /api/chat with streaming. Prints tokens live with a label prefix."""
     payload = {
         "model": OLLAMA_MODEL,
@@ -117,6 +146,7 @@ def _call_ollama(system: str, user_message: str, label: str) -> str:
             {"role": "user",   "content": user_message},
         ],
         "stream": True,
+        "think": think,
     }
     response = requests.post(
         f"{OLLAMA_BASE_URL}/api/chat",
@@ -142,11 +172,23 @@ def _call_ollama(system: str, user_message: str, label: str) -> str:
     return "".join(parts)
 
 
+def _call_llm(system: str, user_message: str, label: str, think: bool = True) -> str:
+    """Route to Claude or Ollama based on META_REASONER_BACKEND."""
+    if META_REASONER_BACKEND == "claude":
+        # Decision phase uses smaller budget; analysis can run long.
+        max_tokens = 1024 if "decision" in label else 4096
+        return _call_claude(system, user_message, label, max_tokens=max_tokens)
+    return _call_ollama(system, user_message, label, think=think)
+
+
 # ── JSON parsing ───────────────────────────────────────────────────────────────
 
 def _parse_decision(raw: str) -> dict:
     """Strip markdown fences, parse JSON, validate required keys."""
     text = raw.strip()
+
+    # Strip <think>...</think> blocks emitted by reasoning models (e.g. qwen3)
+    text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
 
     # Strip ```json ... ``` or ``` ... ``` fences
     if text.startswith("```"):
@@ -262,9 +304,9 @@ def analyze(
     game_context = _build_game_context(failed_maps, all_results, run_history)
 
     # ── Phase 1: Analysis ──────────────────────────────────────────────────────
-    print("  [meta_reasoner] Phase 1: analyzing match failures...")
+    print(f"  [meta_reasoner] Phase 1: analyzing match failures... (backend: {META_REASONER_BACKEND})")
     try:
-        analysis = _call_ollama(_ANALYSIS_SYSTEM, game_context, "meta_reasoner / analysis")
+        analysis = _call_llm(_ANALYSIS_SYSTEM, game_context, "meta_reasoner / analysis")
     except Exception as exc:
         print(f"  [meta_reasoner] Analysis call failed: {exc}")
         return {"action": "noop", "reason": f"analysis phase failed: {exc}", "changes": []}
@@ -277,7 +319,7 @@ def analyze(
         try:
             if attempt == 1:
                 decision_context += "\n\nIMPORTANT: Output ONLY the JSON object. No preamble, no markdown, no extra text."
-            raw = _call_ollama(_DECISION_SYSTEM, decision_context, "meta_reasoner / decision")
+            raw = _call_llm(_DECISION_SYSTEM, decision_context, "meta_reasoner / decision", think=False)
             return _parse_decision(raw)
         except json.JSONDecodeError as exc:
             print(f"  [meta_reasoner] JSON parse error (attempt {attempt+1}): {exc}")
