@@ -9,7 +9,7 @@ class TacBenchSettings(BaseSettings):
     All settings can be overridden by prefixing with TACBENCH_ in your .env file.
     For example: TACBENCH_K_STEPS=50
     """
-    model_config = SettingsConfigDict(env_file=".env", env_prefix="TACBENCH_")
+    model_config = SettingsConfigDict(env_file=".env", env_prefix="TACBENCH_", extra="ignore")
 
     map: str = "tacbench_01"
     player_race: str = "Terran"
