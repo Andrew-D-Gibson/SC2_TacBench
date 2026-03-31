@@ -15,7 +15,6 @@ class TacBenchSettings(BaseSettings):
     player_race: str = "Terran"
     opponent_race: str = "Terran"
     opponent_difficulty: str = "Easy"
-    realtime: bool = False
     k_steps: int = 30
     max_steps: int = 1000
     fallback_directive: str = "HOLD_POSITION"

@@ -4,7 +4,7 @@ from sc2.bot_ai import BotAI
 
 from settings import get_settings
 from terrain_encoder import build_terrain_grid, format_terrain_grid
-from clustering import UnitCluster, compute_threat, ratio_label, velocity_toward_label
+from clustering import UnitCluster, compute_threat, ratio_label, velocity_toward_label, _CONTACT_RANGE_FACTOR
 
 # Cache the downsampled terrain grid (expensive; static per map).
 # Stores (ds_grid, orig_h, orig_w) keyed by (map_name, downsample_factor).
@@ -23,27 +23,33 @@ def _hp_delta_str(delta: int | None) -> str:
 
 
 def _fmt_unit(unit, bot) -> str:
-    """Format any unit or structure: persistent ID, current HP%, HP delta since last call."""
+    """Format any unit or structure: persistent ID, absolute HP, HP%, HP delta, position."""
     uid    = bot.get_unit_id(unit)
     hp_pct = int(100 * unit.health / max(unit.health_max, 1))
     delta  = bot.get_hp_delta(unit)
-    return f"{unit.name} #{uid} {hp_pct}%HP{_hp_delta_str(delta)} @ ({unit.position.x:.0f},{unit.position.y:.0f})"
+    return (
+        f"{unit.name} #{uid} {unit.health:.0f}HP ({hp_pct}%)"
+        f"{_hp_delta_str(delta)} @ ({unit.position.x:.0f},{unit.position.y:.0f})"
+    )
 
 
 # Stim pack buff IDs (BuffId.STIMPACK=27, BuffId.STIMPACKMARAUDER=28)
 _STIM_BUFF_IDS = frozenset({27, 28})
 
 
-def _fmt_unit_full(unit, bot) -> str:
+def _fmt_unit_full(unit, bot, is_enemy: bool = False) -> str:
     """
     Format a mobile unit for the combined cluster view.
-    Includes HP, energy (if any), special status tags, and position.
-    Status tags: STIMMED, CLOAKED, BURROWED, CONSTRUCTING (SCV only).
+    Includes absolute HP, HP%, energy (if any), special status tags, and position.
+    Status tags: STIMMED, CLOAKED, BURROWED, CONSTRUCTING (SCV only), DETECTOR,
+                 DETECTED (enemy cloaked/burrowed units only).
     """
     uid    = bot.get_unit_id(unit)
     hp_pct = int(100 * unit.health / max(unit.health_max, 1))
     delta  = bot.get_hp_delta(unit)
-    parts  = [f"{unit.name} #{uid} {hp_pct}%HP{_hp_delta_str(delta)}"]
+    parts  = [
+        f"{unit.name} #{uid} {unit.health:.0f}HP ({hp_pct}%){_hp_delta_str(delta)}"
+    ]
 
     if unit.energy_max > 0:
         parts.append(f"{unit.energy:.0f}en")
@@ -51,12 +57,18 @@ def _fmt_unit_full(unit, bot) -> str:
     tags = []
     if unit.is_cloaked:
         tags.append("CLOAKED")
+        if is_enemy:
+            tags.append("DETECTED")
     if unit.is_burrowed:
         tags.append("BURROWED")
+        if is_enemy:
+            tags.append("DETECTED")
     if _STIM_BUFF_IDS & unit.buffs:
         tags.append("STIMMED")
     if unit.name == "SCV" and unit.orders and "BUILD" in str(unit.orders[0].ability).upper():
         tags.append("CONSTRUCTING")
+    if getattr(unit, "is_detector", False):
+        tags.append("DETECTOR")
     if tags:
         parts.append(f"[{', '.join(tags)}]")
 
@@ -109,7 +121,10 @@ def _fmt_structure_alerts(bot) -> str | None:
 # ── Simple stats ──────────────────────────────────────────────────────────────
 
 def _fmt_supply(bot: BotAI) -> str:
-    return f"Supply: {bot.supply_used}/{bot.supply_cap} | Army: {bot.army_count}"
+    return (
+        f"Supply: {bot.supply_used}/{bot.supply_cap} | Army: {bot.army_count}"
+        f" | Resources: {bot.minerals}m/{bot.vespene}g"
+    )
 
 
 def _fmt_time(bot: BotAI, step: int) -> str:
@@ -174,6 +189,22 @@ def _fmt_cluster_velocity(c: UnitCluster, k_steps: int) -> str:
     return f"moving {dirs[idx]} ({speed:.1f} tiles/call)"
 
 
+def _fmt_cluster_info(c: UnitCluster) -> str:
+    """
+    Secondary info line for a cluster: composition, cost, and upgrade levels.
+    Shown on its own indented line after the cluster header.
+    """
+    parts = [f"[{c.composition}]" if c.composition else "[unknown]"]
+
+    cost_str = f"cost:{c.total_cost_minerals}m/{c.total_cost_gas}g"
+    parts.append(cost_str)
+
+    if c.avg_attack_upgrade > 0 or c.avg_armor_upgrade > 0:
+        parts.append(f"atk+{c.avg_attack_upgrade:.1f} arm+{c.avg_armor_upgrade:.1f}")
+
+    return "    " + " | ".join(parts)
+
+
 def _fmt_matchup_lines(fc: UnitCluster, all_enemy: list[UnitCluster], k_steps: int) -> list[str]:
     """Matchup lines for one friendly cluster against all visible enemy clusters."""
     lines = []
@@ -189,12 +220,28 @@ def _fmt_matchup_lines(fc: UnitCluster, all_enemy: list[UnitCluster], k_steps: i
         else:
             e_range, e_str, threat_tag = ec.max_ground_range, ec.anti_ground_strength, "gnd-threat"
         rlat = ratio_label(fc.count, e_str)
+
+        # Time-to-contact estimate: only shown when enemy is actively approaching.
+        eta_str = ""
+        if threat != "SAFE" and not ec.is_stationary():
+            dx = fc.center.x - ec.center.x
+            dy = fc.center.y - ec.center.y
+            d  = math.sqrt(dx * dx + dy * dy)
+            if d > 0.001:
+                closing_speed = (ec.velocity_x * dx + ec.velocity_y * dy) / d
+                if closing_speed > 0.001:
+                    contact_range = e_range * _CONTACT_RANGE_FACTOR
+                    gap = dist - contact_range
+                    if gap > 0:
+                        calls = gap / (closing_speed * k_steps)
+                        eta_str = f" | ETA contact: ~{calls:.1f} calls"
+
         if threat == "SAFE":
             capability = f"no anti-{'air' if fc.is_air else 'ground'}"
             lines.append(
                 f"    vs CLUSTER {ec.label} [{_cluster_type_tag(ec)}] "
                 f"{ec.count}u @ ({ec.center.x:.0f},{ec.center.y:.0f}) "
-                f"dist {dist:.1f} | {threat_tag}: SAFE ({capability}) | {vel_lbl}"
+                f"dist {dist:.1f} | {threat_tag}: SAFE ({capability}) | {vel_lbl}{eta_str}"
             )
         else:
             lines.append(
@@ -203,7 +250,7 @@ def _fmt_matchup_lines(fc: UnitCluster, all_enemy: list[UnitCluster], k_steps: i
                 f"dist {dist:.1f} | {threat_tag}: {threat} "
                 f"| range {e_range:.0f} str {e_str:.1f} "
                 f"| ratio {fc.count}/{e_str:.1f} [{rlat}] "
-                f"| {vel_lbl}"
+                f"| {vel_lbl}{eta_str}"
             )
     return lines
 
@@ -215,24 +262,31 @@ def _fmt_forces(
     enemy_air:       list[UnitCluster],
     bot,
     k_steps: int = 30,
+    show_structures: bool = True,
 ) -> str:
     """
-    Combined cluster + matchup + unit listing.
+    Combined cluster + matchup + unit listing, with structures in YOUR FORCES.
 
-    For each friendly cluster: cluster header, per-enemy matchup lines, then
-    each individual unit on its own line with HP, energy, status tags, position.
-    Enemy clusters follow with their own units listed underneath.
+    For each friendly cluster: cluster header, composition/cost/upgrade line,
+    per-enemy matchup lines, then each individual unit on its own line.
+    Friendly structures are listed after all clusters with a [STRUCTURE] tag.
+    Enemy clusters follow with projected next-call position and individual units.
 
     Example:
       YOUR FORCES:
         GROUP A [GND]: 3u @ (32,45) | 240/300HP [80%] | moving NE (3.8 tiles/call)
-          vs CLUSTER 1 [GND] 4u @ (55,60) dist 8.2 | gnd-threat: CONTACT | ...
-          Marine #1 95%HP @ (31,44)
-          Marine #2 80%HP (lost 15% HP since last report) [STIMMED] @ (33,46)
-          Medivac #3 100%HP 125en @ (32,45)
+          [Marine x2, Medivac] | cost:150m/100g | atk+1.0 arm+0.0
+          vs CLUSTER 1 [GND] 4u @ (55,60) dist 8.2 | gnd-threat: CONTACT | ... | ETA contact: ~2.0 calls
+          Marine #1 125HP (100%) @ (31,44)
+          Marine #2 100HP (80%) (lost 15% HP since last report) [STIMMED] @ (33,46)
+          Medivac #3 150HP (100%) 125en [DETECTOR] @ (32,45)
+        [STRUCTURE] CommandCenter #2 1500HP (100%) @ (32,46)
+        [STRUCTURE] SupplyDepot #5 200HP (100%) @ (35,48)
       ENEMY FORCES:
         CLUSTER 1 [GND]: 4u @ (55,60) | 360/400HP [90%] | approaching (4.0 tiles/call)
-          Marine #5 90%HP @ (54,59)
+          [Marine x3, Marauder] | cost:250m/25g
+          → projected @ (59,64) in next call (~30 steps)
+          Marine #5 90HP (90%) @ (54,59)
     """
     all_friendly = friendly_ground + friendly_air
     all_enemy    = enemy_ground    + enemy_air
@@ -254,10 +308,15 @@ def _fmt_forces(
                 f"@ ({fc.center.x:.0f},{fc.center.y:.0f}) "
                 f"| {hp_str}HP [{fc.hp_pct}%] | {vel_str}"
             )
+            lines.append(_fmt_cluster_info(fc))
             for ml in _fmt_matchup_lines(fc, all_enemy, k_steps):
                 lines.append(ml)
             for u in fc.units:
                 lines.append(f"    {_fmt_unit_full(u, bot)}")
+
+    if show_structures and bot.structures:
+        for s in sorted(bot.structures, key=lambda s: s.tag):
+            lines.append(f"  [STRUCTURE] {_fmt_unit(s, bot)}")
 
     lines.append("ENEMY FORCES:")
     if not all_enemy:
@@ -271,9 +330,38 @@ def _fmt_forces(
                 f"@ ({ec.center.x:.0f},{ec.center.y:.0f}) "
                 f"| {hp_str}HP [{ec.hp_pct}%] | {vel_str}"
             )
+            lines.append(_fmt_cluster_info(ec))
+            if not ec.is_stationary():
+                proj = ec.projected_position(k_steps)
+                lines.append(
+                    f"    → projected @ ({proj.x:.0f},{proj.y:.0f}) in next call (~{k_steps} steps)"
+                )
             for u in ec.units:
-                lines.append(f"    {_fmt_unit_full(u, bot)}")
+                lines.append(f"    {_fmt_unit_full(u, bot, is_enemy=True)}")
 
+    return "\n".join(lines)
+
+
+def _fmt_ghost_enemies(bot, step: int, k_steps: int) -> str | None:
+    """
+    Report last-known positions of enemy clusters that have left vision.
+    Only shown if ghost positions exist in the cluster tracker.
+    """
+    tracker = getattr(bot, "_cluster_tracker", None)
+    if tracker is None:
+        return None
+    ghosts = getattr(tracker, "ghost_enemy_positions", [])
+    if not ghosts:
+        return None
+    lines = ["LAST KNOWN ENEMY POSITIONS (out of vision):"]
+    for g in ghosts:
+        steps_ago = step - g.step
+        calls_ago = max(1, round(steps_ago / max(1, k_steps)))
+        suffix = "call" if calls_ago == 1 else "calls"
+        lines.append(
+            f"  Ghost @ ({g.center.x:.0f},{g.center.y:.0f})"
+            f" — last seen {steps_ago} steps ago (~{calls_ago} {suffix} ago)"
+        )
     return "\n".join(lines)
 
 
@@ -303,19 +391,25 @@ def obs_raw_text(bot, step: int) -> str:
         sections.append(_fmt_terrain(bot, cfg.terrain_downsample, all_friendly, all_enemy))
 
     if cfg.show_tactical_overview:
-        # Combined view: cluster headers + matchups + individual units
-        sections.append(_fmt_forces(fg, fa, eg, ea, bot, k_steps=cfg.k_steps))
+        sections.append(_fmt_forces(
+            fg, fa, eg, ea, bot,
+            k_steps=cfg.k_steps,
+            show_structures=cfg.show_your_structures,
+        ))
+        ghost = _fmt_ghost_enemies(bot, step, cfg.k_steps)
+        if ghost:
+            sections.append(ghost)
     else:
         # Fallback flat lists when tactical overview is disabled
         if cfg.show_your_units:
             sections.append(_fmt_units(bot.units, "YOUR UNITS", bot))
         if cfg.show_enemy_units:
             sections.append(_fmt_units(bot.enemy_units, "ENEMY UNITS", bot))
+        if cfg.show_your_structures:
+            result = _fmt_structures(bot.structures, "YOUR STRUCTURES", bot)
+            if result:
+                sections.append(result)
 
-    if cfg.show_your_structures:
-        result = _fmt_structures(bot.structures, "YOUR STRUCTURES", bot)
-        if result:
-            sections.append(result)
     if cfg.show_enemy_structures:
         result = _fmt_structures(bot.enemy_structures, "ENEMY STRUCTURES", bot)
         if result:

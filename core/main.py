@@ -41,8 +41,8 @@ if __name__ == "__main__":
     console.init()
     settings = get_settings()
 
-    player_race       = _resolve_enum(settings.player_race,       Race,       "player_race")
-    opponent_race     = _resolve_enum(settings.opponent_race,      Race,       "opponent_race")
+    player_race         = _resolve_enum(settings.player_race,       Race,       "player_race")
+    opponent_race       = _resolve_enum(settings.opponent_race,      Race,       "opponent_race")
     opponent_difficulty = _resolve_enum(settings.opponent_difficulty, Difficulty, "opponent_difficulty")
 
     bot_type = settings.bot_type.lower()
@@ -65,7 +65,7 @@ if __name__ == "__main__":
                 Bot(player_race, bot),
                 Computer(opponent_race, opponent_difficulty),
             ],
-            realtime=settings.realtime,
+            realtime=True,
         )
     except ValueError as e:
         if _SC2_LOOP_OVERFLOW in str(e) or "out of range" in str(e).lower():

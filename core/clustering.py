@@ -18,6 +18,7 @@ compute_threat(fc, ec, dist) — dynamic threat label based on range + strength
 from __future__ import annotations
 
 import math
+from collections import Counter
 from dataclasses import dataclass, field
 from typing import List
 
@@ -39,6 +40,42 @@ _NEARBY_RANGE_FACTOR  = 3.0  # visible but not imminent → NEARBY
 # Strength ratio thresholds for bumping threat level up or down one step
 _HIGH_THREAT_STR_RATIO = 2.0  # enemy much stronger than our group → bump threat up
 _LOW_THREAT_STR_RATIO  = 0.5  # enemy much weaker than our group  → bump threat down
+
+# Ghost enemy positions older than this many steps are pruned
+_GHOST_MAX_STEPS = 300
+
+# ── Unit mineral/gas build costs (used for cluster cost metric) ────────────────
+
+_UNIT_COSTS: dict[str, tuple[int, int]] = {
+    # Terran
+    "SCV": (50, 0), "Marine": (50, 0), "Reaper": (50, 50),
+    "Marauder": (100, 25), "Ghost": (200, 100),
+    "Hellion": (100, 0), "Hellbat": (100, 0),
+    "WidowMine": (75, 25), "WidowMineBurrowed": (75, 25),
+    "SiegeTank": (150, 125), "SiegeTankSieged": (150, 125),
+    "Cyclone": (150, 100), "Thor": (300, 200), "ThorHighImpactMode": (300, 200),
+    "Liberator": (150, 150), "LiberatorAG": (150, 150),
+    "Viking": (150, 75), "VikingAssault": (150, 75), "VikingFighter": (150, 75),
+    "Medivac": (100, 100), "Raven": (100, 200),
+    "Banshee": (150, 100), "Battlecruiser": (400, 300),
+    # Zerg
+    "Drone": (50, 0), "Overlord": (100, 0), "Overseer": (50, 50),
+    "Zergling": (25, 0), "Baneling": (50, 25),
+    "Roach": (75, 25), "RoachBurrowed": (75, 25), "Ravager": (75, 75),
+    "Hydralisk": (100, 50), "LurkerMP": (50, 100), "LurkerMPBurrowed": (50, 100),
+    "Infestor": (100, 150), "InfestorBurrowed": (100, 150),
+    "SwarmHostMP": (200, 100), "Ultralisk": (300, 200),
+    "BroodLord": (150, 150), "Mutalisk": (100, 100),
+    "Corruptor": (150, 100), "Viper": (100, 200), "Queen": (150, 0),
+    # Protoss
+    "Probe": (50, 0), "Zealot": (100, 0), "Stalker": (125, 50),
+    "Sentry": (50, 100), "Adept": (100, 25),
+    "HighTemplar": (50, 150), "DarkTemplar": (125, 125), "Archon": (100, 300),
+    "Immortal": (275, 100), "Colossus": (300, 200), "Disruptor": (150, 150),
+    "Phoenix": (150, 100), "VoidRay": (250, 150), "Oracle": (150, 150),
+    "Carrier": (350, 250), "Tempest": (250, 175),
+    "Observer": (25, 75), "WarpPrism": (200, 0), "Mothership": (400, 400),
+}
 
 
 # ── Force ratio labels ─────────────────────────────────────────────────────────
@@ -80,6 +117,13 @@ class UnitCluster:
     anti_ground_strength: float = 0.0  # HP-weighted count of units that can attack ground
     anti_air_strength: float = 0.0    # HP-weighted count of units that can attack air
 
+    # Common metrics (populated by _compute_common_metrics for all clusters)
+    composition: str = ""           # e.g. "Marine x3, Marauder"
+    total_cost_minerals: int = 0
+    total_cost_gas: int = 0
+    avg_attack_upgrade: float = 0.0
+    avg_armor_upgrade: float = 0.0
+
     # Velocity — tiles per game step; set by ClusterTracker
     velocity_x: float = 0.0
     velocity_y: float = 0.0
@@ -96,6 +140,13 @@ class UnitCluster:
 
     def is_stationary(self, threshold: float = 0.05) -> bool:
         return self.speed() < threshold
+
+    def projected_position(self, k_steps: int) -> Point2:
+        """Estimated position after k_steps game steps at current velocity."""
+        return Point2((
+            self.center.x + self.velocity_x * k_steps,
+            self.center.y + self.velocity_y * k_steps,
+        ))
 
 
 # ── Threat computation ─────────────────────────────────────────────────────────
@@ -222,6 +273,30 @@ def cluster_units(units: list, radius: float = 12.0) -> list[UnitCluster]:
 
 # ── Cluster metric computation ─────────────────────────────────────────────────
 
+def _compute_common_metrics(cluster: UnitCluster) -> None:
+    """
+    Populate composition, cost, and upgrade fields from the cluster's units.
+    Called for ALL clusters (friendly and enemy).
+    """
+    comp = Counter(u.name for u in cluster.units)
+    cluster.composition = ", ".join(
+        f"{name} x{count}" if count > 1 else name
+        for name, count in comp.most_common()
+    )
+
+    total_m = total_g = 0
+    for u in cluster.units:
+        m, g = _UNIT_COSTS.get(u.name, (0, 0))
+        total_m += m
+        total_g += g
+    cluster.total_cost_minerals = total_m
+    cluster.total_cost_gas      = total_g
+
+    n = len(cluster.units)
+    cluster.avg_attack_upgrade = sum(u.attack_upgrade_level for u in cluster.units) / n
+    cluster.avg_armor_upgrade  = sum(u.armor_upgrade_level  for u in cluster.units) / n
+
+
 def _compute_cluster_metrics(cluster: UnitCluster) -> None:
     """Populate range and strength fields from the cluster's unit composition."""
     gnd_ranges = [u.ground_range for u in cluster.units if u.can_attack_ground]
@@ -243,6 +318,7 @@ def _compute_cluster_metrics(cluster: UnitCluster) -> None:
 @dataclass
 class _Snap:
     center: Point2
+    step: int = 0
 
 
 def _apply_velocities(
@@ -262,6 +338,27 @@ def _apply_velocities(
         if best.center.distance_to(c.center) <= match_max:
             c.velocity_x = (c.center.x - best.center.x) / elapsed_steps
             c.velocity_y = (c.center.y - best.center.y) / elapsed_steps
+
+
+def _find_unmatched_snaps(
+    clusters: list[UnitCluster],
+    snaps: list[_Snap],
+    match_max: float = 30.0,
+) -> list[_Snap]:
+    """
+    Return snaps from the previous observation that were not matched to any
+    current cluster.  These represent enemy groups that have left vision.
+    """
+    if not snaps:
+        return []
+    if not clusters:
+        return list(snaps)
+    matched_ids: set[int] = set()
+    for c in clusters:
+        best = min(snaps, key=lambda s: s.center.distance_to(c.center))
+        if best.center.distance_to(c.center) <= match_max:
+            matched_ids.add(id(best))
+    return [s for s in snaps if id(s) not in matched_ids]
 
 
 # ── Raw cluster builder (internal) ────────────────────────────────────────────
@@ -297,6 +394,11 @@ def _build_clusters_raw(
     for c in fa + ea:
         c.is_air = True
 
+    # Common metrics (composition, cost, upgrades) for all clusters.
+    for c in fg + fa + eg + ea:
+        _compute_common_metrics(c)
+
+    # Enemy-only metrics (weapon ranges and anti-ground/air strength).
     for c in eg + ea:
         _compute_cluster_metrics(c)
 
@@ -330,6 +432,11 @@ class ClusterTracker:
 
     The four-tuple (friendly_ground, friendly_air, enemy_ground, enemy_air) is
     consumed by obs_raw_text via bot._cluster_state.
+
+    ghost_enemy_positions: list[_Snap]
+        Positions of enemy clusters that were visible in a prior observation but
+        are no longer visible.  Each entry carries the step when it was last seen.
+        Entries older than _GHOST_MAX_STEPS steps are automatically pruned.
     """
 
     def __init__(self) -> None:
@@ -338,6 +445,7 @@ class ClusterTracker:
         self._prev_eg: list[_Snap] = []
         self._prev_ea: list[_Snap] = []
         self._prev_step: int = 0
+        self.ghost_enemy_positions: list[_Snap] = []
 
     def update(
         self,
@@ -357,10 +465,21 @@ class ClusterTracker:
         _apply_velocities(eg, self._prev_eg, elapsed)
         _apply_velocities(ea, self._prev_ea, elapsed)
 
-        self._prev_fg = [_Snap(c.center) for c in fg]
-        self._prev_fa = [_Snap(c.center) for c in fa]
-        self._prev_eg = [_Snap(c.center) for c in eg]
-        self._prev_ea = [_Snap(c.center) for c in ea]
+        # Ghost tracking: find enemy snaps not matched to any current cluster.
+        # These represent groups that have left our field of vision.
+        unmatched = (
+            _find_unmatched_snaps(eg, self._prev_eg) +
+            _find_unmatched_snaps(ea, self._prev_ea)
+        )
+        self.ghost_enemy_positions = [
+            g for g in (self.ghost_enemy_positions + unmatched)
+            if step - g.step <= _GHOST_MAX_STEPS
+        ]
+
+        self._prev_fg = [_Snap(c.center, step) for c in fg]
+        self._prev_fa = [_Snap(c.center, step) for c in fa]
+        self._prev_eg = [_Snap(c.center, step) for c in eg]
+        self._prev_ea = [_Snap(c.center, step) for c in ea]
         self._prev_step = step
 
         return fg, fa, eg, ea
