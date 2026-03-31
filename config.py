@@ -43,7 +43,7 @@ MAP_LIST = [
 
 # ── Ollama settings ────────────────────────────────────────────────────────────
 
-OLLAMA_MODEL    = "qwen3:8b"               # meta-reasoner model
+OLLAMA_MODEL    = "qwen3.5:9b"               # meta-reasoner model
 OLLAMA_BASE_URL = "http://localhost:11434"
 OLLAMA_TIMEOUT  = 600                      # seconds; meta-reasoning is slower than playing
 
@@ -52,8 +52,8 @@ OLLAMA_TIMEOUT  = 600                      # seconds; meta-reasoning is slower t
 # or the environment) to use the Claude API instead of Ollama for both the
 # analysis and decision phases.
 
-META_REASONER_BACKEND = "claude"          # "ollama" | "claude"
-FILE_EDITOR_BACKEND   = "claude"          # "ollama" | "claude"
+META_REASONER_BACKEND = "ollama"          # "ollama" | "claude"
+FILE_EDITOR_BACKEND   = "ollama"          # "ollama" | "claude"
 CLAUDE_META_MODEL     = "claude-sonnet-4-6"
 ANTHROPIC_API_KEY     = os.environ.get("ANTHROPIC_API_KEY")  # set in .env or shell
 
