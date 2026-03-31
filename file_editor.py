@@ -16,7 +16,10 @@ import tempfile
 import requests
 
 from config import (
+    ANTHROPIC_API_KEY,
+    CLAUDE_META_MODEL,
     EDITABLE_FILES,
+    FILE_EDITOR_BACKEND,
     OLLAMA_BASE_URL,
     OLLAMA_MODEL,
     OLLAMA_TIMEOUT,
@@ -24,14 +27,10 @@ from config import (
 )
 
 
-# ── Editor Ollama call ─────────────────────────────────────────────────────────
+# ── Editor prompt ──────────────────────────────────────────────────────────────
 
-def _call_editor(instructions: str, current_content: str) -> str:
-    """
-    Ask Ollama to apply instructions to the file and return the full updated content.
-    No system prompt — the editor prompt is self-contained.
-    """
-    prompt = (
+def _build_editor_prompt(instructions: str, current_content: str) -> str:
+    return (
         "You are a precise file editor. Apply the following instructions to the file below "
         "and return the complete updated file content.\n\n"
         f"INSTRUCTIONS:\n{instructions}\n\n"
@@ -40,6 +39,12 @@ def _call_editor(instructions: str, current_content: str) -> str:
         "No explanation, no markdown fences, no preamble. "
         "The output will be written directly to disk."
     )
+
+
+# ── Editor LLM calls ───────────────────────────────────────────────────────────
+
+def _call_editor_ollama(instructions: str, current_content: str) -> str:
+    prompt = _build_editor_prompt(instructions, current_content)
     payload = {
         "model": OLLAMA_MODEL,
         "messages": [{"role": "user", "content": prompt}],
@@ -52,6 +57,26 @@ def _call_editor(instructions: str, current_content: str) -> str:
     )
     response.raise_for_status()
     return response.json()["message"]["content"]
+
+
+def _call_editor_claude(instructions: str, current_content: str) -> str:
+    import anthropic
+    if not ANTHROPIC_API_KEY:
+        raise RuntimeError("FILE_EDITOR_BACKEND=claude but ANTHROPIC_API_KEY is not set.")
+    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    prompt = _build_editor_prompt(instructions, current_content)
+    message = client.messages.create(
+        model=CLAUDE_META_MODEL,
+        max_tokens=4096,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    return message.content[0].text
+
+
+def _call_editor(instructions: str, current_content: str) -> str:
+    if FILE_EDITOR_BACKEND == "claude":
+        return _call_editor_claude(instructions, current_content)
+    return _call_editor_ollama(instructions, current_content)
 
 
 # ── Validation ─────────────────────────────────────────────────────────────────
@@ -129,7 +154,7 @@ def apply_changes(changes: list[dict]) -> bool:
         try:
             new_content = _call_editor(instructions, current_content)
         except Exception as exc:
-            print(f"  [file_editor] Ollama editor call failed for '{rel_path}': {exc}")
+            print(f"  [file_editor] Editor call failed for '{rel_path}': {exc}")
             all_ok = False
             continue
 

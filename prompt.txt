@@ -63,6 +63,20 @@ These are strong guidelines. Use your judgment — every situation is different.
    One directive applies to one group — you cannot give different orders to two
    groups in a single response.  Pick the most important action for this step.
 
-9. Air units that face zero anti-air threat (labeled SAFE in matchup lines) should be directed to ATTACK enemy positions unless there is an explicit reason to hold them back. A unit with a SAFE matchup is free firepower — use it.
+9. Air units that face zero anti-air threat (labeled SAFE in matchup lines) should be directed to ATTACK
+   enemy positions unless there is an explicit reason to hold them back. A unit with a SAFE matchup is free firepower — use it.
+
+10. Defending a structure requires PROXIMITY, not just intent.
+    To defend a structure, your units must be positioned adjacent to or between the structure and known enemy approach paths. 
+    Issuing ATTACK toward your own current position does not constitute defense if your units are not near the threatened structure. 
+    If a structure is under threat and your units are far from it, ATTACK toward the structure's coordinates to close the gap,
+    but also consider attacking the enemy cluster causing the damage instead (see rule 11).
+
+11. When a structure reports HP loss, attack the enemy causing the damage.
+    If any structure shows '(lost X% HP since last report)', an enemy unit is currently in attack range of that structure. 
+    Do NOT simply move to the structure's coordinates — identify the nearest visible enemy cluster to that structure
+    and issue ATTACK targeting that cluster to eliminate the threat at its source. 
+    Moving to the depotlocation while the attacker is left alive accomplishes nothing; destroying the attacker stops the damage immediately.
+
 
 --- BATTLEFIELD REPORT ---

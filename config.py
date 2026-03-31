@@ -53,6 +53,7 @@ OLLAMA_TIMEOUT  = 600                      # seconds; meta-reasoning is slower t
 # analysis and decision phases.
 
 META_REASONER_BACKEND = "claude"          # "ollama" | "claude"
+FILE_EDITOR_BACKEND   = "claude"          # "ollama" | "claude"
 CLAUDE_META_MODEL     = "claude-sonnet-4-6"
 ANTHROPIC_API_KEY     = os.environ.get("ANTHROPIC_API_KEY")  # set in .env or shell
 
