@@ -79,4 +79,40 @@ These are strong guidelines. Use your judgment — every situation is different.
     Moving to the depotlocation while the attacker is left alive accomplishes nothing; destroying the attacker stops the damage immediately.
 
 
+--- DIRECTIVE REFERENCE ---
+
+ATTACK  ← primary movement command
+  Attack-move toward a target coordinate. Units engage enemies encountered along
+  the way. Use this to advance toward objectives or rally points.
+  Target coordinates should point toward your destination, not toward a cluster
+  you are disadvantaged against — if you need to disengage, use RETREAT instead.
+  REQUIRES target_x and target_y.
+  Format: {"directive": "ATTACK", "units": ["A"], "target_x": 55.0, "target_y": 60.0, "reasoning": "..."}
+
+RETREAT
+  Moves units directly away from the centroid of visible enemies.
+  Works in any scenario — no base location needed.
+  A smart, proactive choice when outnumbered or outgunned at close range.
+  Strongly consider it when local ratio is DISADVANTAGED or CRITICAL at CONTACT
+  or THREAT range.
+  Format: {"directive": "RETREAT", "units": ["A"], "reasoning": "..."}
+
+HOLD_POSITION
+  Hold ground. Units attack enemies within range (6 tiles) but will not advance.
+  Useful for defending a position, holding a choke, or buying time.
+  Format: {"directive": "HOLD_POSITION", "units": ["A"], "reasoning": "..."}
+
+SPREAD
+  Spread units into a loose grid. Fires once then auto-transitions to HOLD_POSITION.
+  Consider this before entering range of area-of-effect weapons.
+  Format: {"directive": "SPREAD", "units": ["A"], "reasoning": "..."}
+
+MOVE  ← rarely needed
+  Move to a coordinate WITHOUT engaging enemies encountered along the way.
+  Only useful when you specifically need to bypass an area without fighting.
+  In most situations, ATTACK is the better choice.
+  REQUIRES target_x and target_y.
+  Format: {"directive": "MOVE", "units": ["A"], "target_x": 32.0, "target_y": 64.0, "reasoning": "..."}
+
+
 --- BATTLEFIELD REPORT ---
