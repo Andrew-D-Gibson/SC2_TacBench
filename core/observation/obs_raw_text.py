@@ -2,9 +2,9 @@ import math
 
 from sc2.bot_ai import BotAI
 
-from settings import get_settings
-from terrain_encoder import build_terrain_grid, format_terrain_grid
-from clustering import UnitCluster, compute_threat, ratio_label, velocity_toward_label, _CONTACT_RANGE_FACTOR
+from core.settings import get_settings
+from core.observation.terrain_encoder import build_terrain_grid, format_terrain_grid
+from core.tactics.clustering import UnitCluster, compute_threat, ratio_label, velocity_toward_label, _CONTACT_RANGE_FACTOR
 
 # Cache the downsampled terrain grid (expensive; static per map).
 # Stores (ds_grid, orig_h, orig_w) keyed by (map_name, downsample_factor).
@@ -196,7 +196,7 @@ def _fmt_cluster_info(c: UnitCluster) -> str:
     """
     parts = [f"[{c.composition}]" if c.composition else "[unknown]"]
 
-    cost_str = f"cost:{c.total_cost_minerals}m/{c.total_cost_gas}g"
+    cost_str = f"cost:{c.total_cost_minerals + c.total_cost_gas}"
     parts.append(cost_str)
 
     if c.avg_attack_upgrade > 0 or c.avg_armor_upgrade > 0:
@@ -241,14 +241,14 @@ def _fmt_matchup_lines(fc: UnitCluster, all_enemy: list[UnitCluster], k_steps: i
             lines.append(
                 f"    vs CLUSTER {ec.label} [{_cluster_type_tag(ec)}] "
                 f"{ec.count}u @ ({ec.center.x:.0f},{ec.center.y:.0f}) "
-                f"dist {dist:.1f} | {threat_tag}: SAFE ({capability}) | {vel_lbl}{eta_str}"
+                f"dist {dist:.1f} rng:{e_range:.0f} | {threat_tag}: SAFE ({capability}) | {vel_lbl}{eta_str}"
             )
         else:
             lines.append(
                 f"    vs CLUSTER {ec.label} [{_cluster_type_tag(ec)}] "
                 f"{ec.count}u @ ({ec.center.x:.0f},{ec.center.y:.0f}) "
-                f"dist {dist:.1f} | {threat_tag}: {threat} "
-                f"| range {e_range:.0f} str {e_str:.1f} "
+                f"distance {dist:.1f} range:{e_range:.0f} | {threat_tag}: {threat} "
+                f"| str {e_str:.1f} "
                 f"| ratio {fc.count}/{e_str:.1f} [{rlat}] "
                 f"| {vel_lbl}{eta_str}"
             )
@@ -275,16 +275,16 @@ def _fmt_forces(
     Example:
       YOUR FORCES:
         GROUP A [GND]: 3u @ (32,45) | 240/300HP [80%] | moving NE (3.8 tiles/call)
-          [Marine x2, Medivac] | cost:150m/100g | atk+1.0 arm+0.0
-          vs CLUSTER 1 [GND] 4u @ (55,60) dist 8.2 | gnd-threat: CONTACT | ... | ETA contact: ~2.0 calls
+          [Marine x2, Medivac] | cost:250 | atk+1.0 arm+0.0
+          vs CLUSTER 1 [GND] 4u @ (55,60) dist 8.2 rng:6 | gnd-threat: CONTACT | ... | ETA contact: ~2.0 calls
           Marine #1 125HP (100%) @ (31,44)
           Marine #2 100HP (80%) (lost 15% HP since last report) [STIMMED] @ (33,46)
           Medivac #3 150HP (100%) 125en [DETECTOR] @ (32,45)
         [STRUCTURE] CommandCenter #2 1500HP (100%) @ (32,46)
         [STRUCTURE] SupplyDepot #5 200HP (100%) @ (35,48)
       ENEMY FORCES:
-        CLUSTER 1 [GND]: 4u @ (55,60) | 360/400HP [90%] | approaching (4.0 tiles/call)
-          [Marine x3, Marauder] | cost:250m/25g
+        CLUSTER 1 [GND]: 4u @ (55,60) | 360/400HP [90%] | gnd-rng:6 air-rng:0 | approaching (4.0 tiles/call)
+          [Marine x3, Marauder] | cost:275
           → projected @ (59,64) in next call (~30 steps)
           Marine #5 90HP (90%) @ (54,59)
     """
@@ -328,7 +328,9 @@ def _fmt_forces(
             lines.append(
                 f"  CLUSTER {ec.label} [{_cluster_type_tag(ec)}]: {ec.count}u "
                 f"@ ({ec.center.x:.0f},{ec.center.y:.0f}) "
-                f"| {hp_str}HP [{ec.hp_pct}%] | {vel_str}"
+                f"| {hp_str}HP [{ec.hp_pct}%] "
+                f"| gnd-rng:{ec.max_ground_range:.0f} air-rng:{ec.max_air_range:.0f} "
+                f"| {vel_str}"
             )
             lines.append(_fmt_cluster_info(ec))
             if not ec.is_stationary():

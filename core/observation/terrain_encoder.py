@@ -179,7 +179,6 @@ def format_terrain_grid(
             "~ = medium ground",
             "^ = high ground",
             "# = unpathable",
-            "x = walkable but not buildable",
         ]
         if overlays:
             lines.append("A-Z = your unit groups")

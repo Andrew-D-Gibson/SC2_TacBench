@@ -11,18 +11,20 @@ Usage:
 Stop with Ctrl-C at any time; the git state will be clean (either committed or stashed).
 """
 
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 import json
 import os
 import subprocess
-import sys
 import time
 from datetime import datetime
-from pathlib import Path
 
-import meta_reasoner
-import file_editor
-import orc_console
-from config import (
+from orchestrator import meta_reasoner
+from orchestrator import file_editor
+from orchestrator import orc_console
+from orchestrator.config import (
     EDITABLE_FILES,
     LOGS_DIR,
     MAP_LIST,

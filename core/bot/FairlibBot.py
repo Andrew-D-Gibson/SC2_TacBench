@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from BaseSC2Bot import BaseSC2Bot
-import console
+from core.bot.BaseSC2Bot import BaseSC2Bot
+from core import console
 
 from fairlib import (
     OllamaAdapter,
@@ -14,7 +14,7 @@ from fairlib import (
 
 OLLAMA_HOST = "http://localhost:11434"
 
-_PROMPT_PATH = Path(__file__).parent.parent / "prompt.txt"
+_PROMPT_PATH = Path(__file__).parent.parent.parent / "prompt.txt"
 _SYSTEM_PROMPT = _PROMPT_PATH.read_text(encoding="utf-8")
 
 

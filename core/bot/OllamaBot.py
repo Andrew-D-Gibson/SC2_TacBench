@@ -3,15 +3,15 @@ import json
 import requests
 from pathlib import Path
 
-from BaseSC2Bot import BaseSC2Bot
-import console
+from core.bot.BaseSC2Bot import BaseSC2Bot
+from core import console
 
 OLLAMA_URL = "http://localhost:11434/api/chat"
 STREAM = True  # set to False to wait for the full response without token-by-token output
 
 # Load the shared prompt template once at import time.
 # The prompt file lives alongside this script in core/.
-_PROMPT_PATH = Path(__file__).parent.parent / "prompt.txt"
+_PROMPT_PATH = Path(__file__).parent.parent.parent / "prompt.txt"
 _SYSTEM_PROMPT = _PROMPT_PATH.read_text(encoding="utf-8")
 
 

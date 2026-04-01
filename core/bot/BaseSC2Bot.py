@@ -1,10 +1,10 @@
-from obs_raw_text import obs_raw_text
-from execute_directive import execute_directive, get_directive_registry
-from directive import Directive, normalize_directives
-from settings import get_settings
-from map_loader import load_map_scenario
-from clustering import ClusterTracker
-import console
+from core.observation.obs_raw_text import obs_raw_text
+from core.directives.execute_directive import execute_directive, get_directive_registry
+from core.directives.directive import Directive, normalize_directives
+from core.settings import get_settings
+from core.map_loader import load_map_scenario
+from core.tactics.clustering import ClusterTracker
+from core import console
 
 from sc2.bot_ai import BotAI
 from sc2.data import Result

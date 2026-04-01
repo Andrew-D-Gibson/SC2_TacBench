@@ -1,9 +1,13 @@
-from BaseSC2Bot import BaseSC2Bot
-from ClaudeBot import ClaudeBot
-from FairlibBot import FairlibBot
-from OllamaBot import OllamaBot
-from settings import get_settings
-import console
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from core.bot.BaseSC2Bot import BaseSC2Bot
+from core.bot.ClaudeBot import ClaudeBot
+from core.bot.FairlibBot import FairlibBot
+from core.bot.OllamaBot import OllamaBot
+from core.settings import get_settings
+from core import console
 
 from sc2 import maps
 from sc2.data import Difficulty, Race

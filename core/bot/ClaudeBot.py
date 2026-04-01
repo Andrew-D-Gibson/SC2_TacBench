@@ -2,11 +2,11 @@ from pathlib import Path
 
 import anthropic
 
-from BaseSC2Bot import BaseSC2Bot
-from settings import get_settings
-import console
+from core.bot.BaseSC2Bot import BaseSC2Bot
+from core.settings import get_settings
+from core import console
 
-_PROMPT_PATH = Path(__file__).parent.parent / "prompt.txt"
+_PROMPT_PATH = Path(__file__).parent.parent.parent / "prompt.txt"
 _SYSTEM_PROMPT = _PROMPT_PATH.read_text(encoding="utf-8")
 
 

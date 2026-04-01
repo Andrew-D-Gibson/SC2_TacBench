@@ -17,11 +17,12 @@
 import os
 from dotenv import load_dotenv
 
-load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
+PROJECT_ROOT    = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+load_dotenv(os.path.join(PROJECT_ROOT, ".env"))
 
 # ── Project paths ──────────────────────────────────────────────────────────────
 
-PROJECT_ROOT    = os.path.dirname(os.path.abspath(__file__))
 PLAYER_ENTRY    = os.path.join(PROJECT_ROOT, "core", "main.py")
 LOGS_DIR        = os.path.join(PROJECT_ROOT, "logs")
 ORCHESTRATOR_LOG_PATH = os.path.join(PROJECT_ROOT, "orchestrator_log.jsonl")
@@ -31,7 +32,7 @@ ORCHESTRATOR_LOG_PATH = os.path.join(PROJECT_ROOT, "orchestrator_log.jsonl")
 
 EDITABLE_FILES = [
     "prompt.txt",
-    "core/obs_raw_text.py",
+    "core/observation/obs_raw_text.py",
 ]
 
 # ── Maps to evaluate each iteration ───────────────────────────────────────────

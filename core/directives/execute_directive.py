@@ -1,8 +1,8 @@
 from sc2.bot_ai import BotAI
 from sc2.position import Point2
 
-from directive import Directive
-import console
+from core.directives.directive import Directive
+from core import console
 
 # ── Tactical constants ────────────────────────────────────────────────────────
 

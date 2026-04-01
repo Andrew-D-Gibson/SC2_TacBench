@@ -15,8 +15,8 @@ import tempfile
 
 import requests
 
-import orc_console
-from config import (
+from orchestrator import orc_console
+from orchestrator.config import (
     ANTHROPIC_API_KEY,
     CLAUDE_META_MODEL,
     EDITABLE_FILES,

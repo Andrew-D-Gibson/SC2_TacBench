@@ -5,11 +5,10 @@ import sys
 from pathlib import Path
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
-CORE_DIR = ROOT_DIR / "core"
-sys.path.insert(0, str(CORE_DIR))
+sys.path.insert(0, str(ROOT_DIR))
 
-from directive import normalize_directive  # noqa: E402
-from execute_directive import get_directive_registry  # noqa: E402
+from core.directives.directive import normalize_directive  # noqa: E402
+from core.directives.execute_directive import get_directive_registry  # noqa: E402
 
 
 def test_valid_dict():
