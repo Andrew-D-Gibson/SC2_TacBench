@@ -31,27 +31,32 @@ These are strong guidelines. Use your judgment — every situation is different.
    It shows your unit clusters, visible enemy clusters, distance, and LOCAL force ratio.
    The local ratio for a specific matchup matters far more than total unit counts.
 
-3. RETREAT is an active tactical choice, not a last resort.
+3. Your unit clusters have a range to each cluster from SAFE (far away), DISTANT (still solidly out of range), 
+   NEARBY (the enemy cluster must be considered), THREAT (the enemy cluster is very close),
+   to CONTACT (the enemy cluster is engaging your cluster).
+
+4. RETREAT is an active tactical choice, not a last resort.
    When you are at close range (CONTACT or THREAT) and outgunned (DISADVANTAGED or CRITICAL ratio),
    issuing a RETREAT directive to that cluster is usually correct.
+   Be careful approaching a cluster that you are DISADVANTAGED or CRITICAL against.
    A force that retreats and recovers can win; one that stands and trades badly cannot.
 
-4. Moving toward an enemy you cannot beat is usually dangerous, but sometimes necessary.
+5. Moving toward an enemy you cannot beat is usually dangerous, but sometimes necessary.
    If you need to move away from a threat, RETREAT handles the escape vector for you.
    Pointing ATTACK toward a cluster you are losing to is rarely correct.
 
-5. The target coordinate for ATTACK should be where you want to *end up* — an
+6. The target coordinate for ATTACK should be where you want to *end up* — an
    objective, an enemy force, or tactically advantageous open ground. 
    Position your forces to intercept enemy advances when needed.
    When the path is safe and the odds reasonable, ATTACK is the right way to advance. 
    When unsure, HOLD_POSITION or RETREAT is safer than pushing into a strong enemy.
 
-6. Eliminate threats efficiently when the odds favor you.
+7. Eliminate threats efficiently when the odds favor you.
    Issue aggressive ATTACK directives at CONTACT or THREAT range when local ratio is EVEN or ADVANTAGED.
 
-7. SPREAD before concentrated AoE fire (Siege Tanks, Infestors, High Templar) to reduce splash damage.
+8. SPREAD before concentrated AoE fire (Siege Tanks, Infestors, High Templar) to reduce splash damage.
 
-8. Issue directives at the cluster level ("A", "B"…) by default.
+9. Issue directives at the cluster level ("A", "B"…) by default.
    Use the "units" field to target a specific group: "units": ["A"].
    Only drop to individual unit IDs when you need precise surgical control: "units": [4, 2, 7].
    You can give multiple directives, one for each cluster:
@@ -66,13 +71,13 @@ These are strong guidelines. Use your judgment — every situation is different.
    {"directive": "ATTACK", "units": ["A"], "target_x": 55.0, "target_y": 60.0, "reasoning": "..."}
    {"directive": "RETREAT", "units": ["A"], "reasoning": "..."}
 
-9. Defending an objective (like a structure) requires PROXIMITY, not just intent.
-   To defend a structure, your units must be positioned adjacent to or between the structure and known enemy approach paths. 
-   Issuing ATTACK toward your own current position does not constitute defense if your units are not near the threatened structure. 
-   If a structure is under threat and your units are far from it, ATTACK toward the structure's coordinates to close the gap,
-   but also consider attacking the enemy cluster causing the damage instead (see rule 11).
+10. Defending an objective (like a structure) requires PROXIMITY, not just intent.
+    To defend a structure, your units must be positioned adjacent to or between the structure and known enemy approach paths. 
+    Issuing ATTACK toward your own current position does not constitute defense if your units are not near the threatened structure. 
+    If a structure is under threat and your units are far from it, ATTACK toward the structure's coordinates to close the gap,
+    but also consider attacking the enemy cluster causing the damage instead (see rule 11).
 
-10. When a structure reports HP loss, consider attacking the enemy causing the damage.
+11. When a structure reports HP loss, consider attacking the enemy causing the damage.
     If any structure shows '(lost X% HP since last report)', an enemy unit is currently in attack range of that structure. 
     Do NOT simply move to the structure's coordinates — identify the nearest visible enemy cluster to that structure
     and issue ATTACK targeting that cluster to eliminate the threat at its source. 

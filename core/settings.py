@@ -28,6 +28,7 @@ class TacBenchSettings(BaseSettings):
     show_game_time: bool = True
     show_locations: bool = True
     show_tactical_overview: bool = True  # per-cluster matchups with range/strength/velocity info
+    show_prediction: bool = True         # projected cluster positions + threat analysis at next LLM call
     cluster_radius: float = 12.0         # tile radius used to group units into clusters
     cluster_track_interval: int = 5      # update cluster velocities every N game steps
 

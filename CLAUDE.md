@@ -142,6 +142,7 @@ All game settings use the `TACBENCH_` prefix. Orchestrator settings do not. Key 
 | `TACBENCH_CLUSTER_RADIUS` | `12.0` | tile radius for spatial unit grouping |
 | `TACBENCH_CLUSTER_TRACK_INTERVAL` | `5` | steps between velocity snapshots |
 | `TACBENCH_SHOW_TACTICAL_OVERVIEW` | `true` | cluster+matchup section in prompt |
+| `TACBENCH_SHOW_PREDICTION` | `true` | projected cluster positions + threat at next call |
 | `TACBENCH_SHOW_TERRAIN` | `false` | ASCII terrain grid (~500–1500 tokens) |
 | `TACBENCH_TERRAIN_DOWNSAMPLE` | `4` | higher = fewer tokens |
 | `TACBENCH_SHOW_HISTORY` | `false` | include recent decision history |
@@ -193,21 +194,27 @@ The tactical overview cluster header format:
 YOUR FORCES:
   GROUP A [GND]: 8u @ (32,45) | 640/800HP [80%] | moving NE (3.8 tiles/call)
     [Marine x6, Medivac x2] | cost:700 | atk+1.0 arm+0.0
-    vs CLUSTER 1 [GND] 14u @ (8,23) dist 14.4 rng:6 | gnd-threat: NEARBY | str 14.0 | ratio 8/14.0 [DISADVANTAGED] | stationary
+    vs CLUSTER 1 [GND] 14u @ (8,23) [NW] dist 14.4 rng:6 | gnd-threat: NEARBY | str 14.0 | ratio 8/14.0 [DISADVANTAGED] | stationary
 
 ENEMY FORCES:
   CLUSTER 1 [GND]: 14u @ (8,23) | 950/950HP [100%] | gnd-rng:6 air-rng:0 | stationary
     [Marine x10, Marauder x4] | cost:1000
+
+PREDICTION (~30 steps from now):
+  GROUP A [GND]: (32,45) → (35,48)
+    vs CLUSTER 1 [GND] (8,23) → (11,26) [NW] dist 8.2 rng:6 | gnd-threat: CONTACT (was NEARBY) | str 14.0 | ratio 8/14.0 [DISADVANTAGED] | approaching
 ```
 
 Key fields:
+- `[NW]` — compass bearing from the friendly cluster to the enemy cluster (SC2: +x=E, +y=N)
 - `dist` — Euclidean distance between cluster centers
 - `rng:N` — enemy weapon range relevant to the friendly cluster type (air or ground)
 - `gnd-rng` / `air-rng` — max ground/air weapon range of any unit in the enemy cluster
 - `cost:N` — total mineral+gas value (minerals + gas, single combined number)
 - `str N.N` — HP-weighted count of enemy units that can attack the friendly type
 - `ratio X/Y [LABEL]` — friendly count vs enemy strength → ADVANTAGED/EVEN/DISADVANTAGED/CRITICAL
-- `gnd-threat:` label — SAFE / NEARBY / THREAT / CONTACT (based on range multipliers vs distance)
+- `gnd-threat:` label — SAFE / DISTANT / NEARBY / THREAT / CONTACT (based on range multipliers vs distance)
+- `(was X)` in PREDICTION — threat level changed from current to projected; highlights imminent escalation or de-escalation
 
 ### Clustering (clustering.py)
 - Ground and air units are **always clustered separately** (so ground threat labels don't bleed into air matchups).
@@ -308,5 +315,6 @@ The most impactful levers for improving bot performance are:
 
 - **Cluster cost display**: changed from `cost:900m/100g` to `cost:1000` (single mineral+gas total).
 - **Enemy cluster header**: now shows `gnd-rng:N air-rng:N` — max ground/air weapon range of any unit in the cluster.
-- **Matchup lines (YOUR FORCES)**: the relevant enemy weapon range now appears immediately after distance as `rng:N`, so the LLM can compare distance vs. effective range at a glance. The redundant `range N` field that appeared mid-line was removed.
+- **Matchup lines (YOUR FORCES)**: bearing indicator `[NW]` added between coordinates and distance, showing compass direction from the friendly cluster to the enemy cluster. The relevant enemy weapon range `rng:N` appears immediately after distance. The `distance`/`range:` inconsistency between SAFE and non-SAFE branches was also fixed to `dist`/`rng:` throughout.
+- **PREDICTION section**: new section after YOUR FORCES / ENEMY FORCES that projects all clusters forward by `k_steps` and re-runs threat analysis at predicted positions. Shows current→projected positions, bearing, projected distance, projected threat with `(was X)` escalation annotation, strength, ratio, and velocity label. No unit-level detail. Toggle with `TACBENCH_SHOW_PREDICTION=false`.
 - **Directory reorganization**: `core/` was split into `core/bot/`, `core/tactics/`, `core/observation/`, `core/directives/`. The orchestrator files moved from project root to `orchestrator/`. All imports use absolute `from core.xxx` style.

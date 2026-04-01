@@ -174,8 +174,22 @@ def _fmt_terrain(
 
 # ── Tactical overview ─────────────────────────────────────────────────────────
 
+_THREAT_LEVELS = {"SAFE": 0, "DISTANT": 1, "NEARBY": 2, "THREAT": 3, "CONTACT": 4}
+
+
 def _cluster_type_tag(c: UnitCluster) -> str:
     return "AIR" if c.is_air else "GND"
+
+
+def _bearing(from_x: float, from_y: float, to_x: float, to_y: float) -> str:
+    """Compass direction from (from_x, from_y) toward (to_x, to_y). SC2: +x=E, +y=N."""
+    dx = to_x - from_x
+    dy = to_y - from_y
+    if abs(dx) < 0.001 and abs(dy) < 0.001:
+        return "HERE"
+    deg  = math.degrees(math.atan2(dy, dx)) % 360
+    dirs = ["E", "NE", "N", "NW", "W", "SW", "S", "SE"]
+    return dirs[int((deg + 22.5) / 45) % 8]
 
 
 def _fmt_cluster_velocity(c: UnitCluster, k_steps: int) -> str:
@@ -215,6 +229,7 @@ def _fmt_matchup_lines(fc: UnitCluster, all_enemy: list[UnitCluster], k_steps: i
         dist    = ec.distance_to(fc)
         threat  = compute_threat(fc, ec, dist)
         vel_lbl = velocity_toward_label(ec, fc, k_steps)
+        bear    = _bearing(fc.center.x, fc.center.y, ec.center.x, ec.center.y)
         if fc.is_air:
             e_range, e_str, threat_tag = ec.max_air_range, ec.anti_air_strength, "air-threat"
         else:
@@ -241,18 +256,120 @@ def _fmt_matchup_lines(fc: UnitCluster, all_enemy: list[UnitCluster], k_steps: i
             lines.append(
                 f"    vs CLUSTER {ec.label} [{_cluster_type_tag(ec)}] "
                 f"{ec.count}u @ ({ec.center.x:.0f},{ec.center.y:.0f}) "
-                f"dist {dist:.1f} rng:{e_range:.0f} | {threat_tag}: SAFE ({capability}) | {vel_lbl}{eta_str}"
+                f"[{bear}] distance {dist:.1f} range:{e_range:.0f} "
+                f"| {threat_tag}: SAFE ({capability}) | {vel_lbl}{eta_str}"
             )
         else:
             lines.append(
                 f"    vs CLUSTER {ec.label} [{_cluster_type_tag(ec)}] "
                 f"{ec.count}u @ ({ec.center.x:.0f},{ec.center.y:.0f}) "
-                f"distance {dist:.1f} range:{e_range:.0f} | {threat_tag}: {threat} "
+                f"[{bear}] distance {dist:.1f} range:{e_range:.0f} "
+                f"| {threat_tag}: {threat} "
                 f"| str {e_str:.1f} "
                 f"| ratio {fc.count}/{e_str:.1f} [{rlat}] "
                 f"| {vel_lbl}{eta_str}"
             )
     return lines
+
+
+def _fmt_prediction(
+    friendly_ground: list[UnitCluster],
+    friendly_air:    list[UnitCluster],
+    enemy_ground:    list[UnitCluster],
+    enemy_air:       list[UnitCluster],
+    k_steps: int = 30,
+) -> str:
+    """
+    Project all clusters forward by k_steps and re-run threat analysis at predicted
+    positions.  Highlights threat-level changes vs. the current state so the LLM can
+    see at a glance whether engagements are imminent.
+
+    No unit-by-unit detail — cluster-level only.
+
+    Example:
+      PREDICTION (~30 steps from now):
+        GROUP A [GND]: (32,45) → (35,48)
+          vs CLUSTER 1 [GND] (8,23) → (11,26) [NW] distance 8.4 range:6 | gnd-threat: CONTACT (was NEARBY) | str 14.0 | ratio 8/14.0 [DISADVANTAGED] | approaching
+        GROUP B [GND]: (50,60) [stationary]
+          vs CLUSTER 1 [GND] (8,23) → (11,26) [SW] distance 52.3 range:6 | gnd-threat: DISTANT | stationary
+    """
+    all_friendly = friendly_ground + friendly_air
+    all_enemy    = enemy_ground    + enemy_air
+
+    if not all_friendly:
+        return ""
+
+    lines = [f"PREDICTION (~{k_steps} steps from now):"]
+
+    for fc in sorted(all_friendly, key=lambda c: c.label):
+        fp = fc.projected_position(k_steps)
+        if fc.is_stationary():
+            lines.append(
+                f"  GROUP {fc.label} [{_cluster_type_tag(fc)}]: "
+                f"({fc.center.x:.0f},{fc.center.y:.0f}) [stationary]"
+            )
+        else:
+            lines.append(
+                f"  GROUP {fc.label} [{_cluster_type_tag(fc)}]: "
+                f"({fc.center.x:.0f},{fc.center.y:.0f}) → ({fp.x:.0f},{fp.y:.0f})"
+            )
+
+        if not all_enemy:
+            lines.append("    vs ENEMY: none visible")
+            continue
+
+        for ec in sorted(all_enemy, key=lambda e: e.distance_to(fc)):
+            ep          = ec.projected_position(k_steps)
+            cur_dist    = ec.distance_to(fc)
+            proj_dx     = ep.x - fp.x
+            proj_dy     = ep.y - fp.y
+            proj_dist   = math.sqrt(proj_dx * proj_dx + proj_dy * proj_dy)
+            bear        = _bearing(fp.x, fp.y, ep.x, ep.y)
+            cur_threat  = compute_threat(fc, ec, cur_dist)
+            proj_threat = compute_threat(fc, ec, proj_dist)
+            vel_lbl     = velocity_toward_label(ec, fc, k_steps)
+
+            if fc.is_air:
+                e_range, e_str, threat_tag = ec.max_air_range, ec.anti_air_strength, "air-threat"
+            else:
+                e_range, e_str, threat_tag = ec.max_ground_range, ec.anti_ground_strength, "gnd-threat"
+
+            rlat = ratio_label(fc.count, e_str)
+
+            # Threat-level change annotation
+            cur_lvl  = _THREAT_LEVELS.get(cur_threat, 0)
+            proj_lvl = _THREAT_LEVELS.get(proj_threat, 0)
+            if proj_lvl > cur_lvl:
+                threat_str = f"{proj_threat} (was {cur_threat})"
+            elif proj_lvl < cur_lvl:
+                threat_str = f"{proj_threat} (was {cur_threat})"
+            else:
+                threat_str = proj_threat
+
+            # Enemy position: show current→projected only if moving
+            if ec.is_stationary():
+                enemy_pos = f"@ ({ec.center.x:.0f},{ec.center.y:.0f})"
+            else:
+                enemy_pos = f"({ec.center.x:.0f},{ec.center.y:.0f}) → ({ep.x:.0f},{ep.y:.0f})"
+
+            if proj_threat == "SAFE":
+                capability = f"no anti-{'air' if fc.is_air else 'ground'}"
+                lines.append(
+                    f"    vs CLUSTER {ec.label} [{_cluster_type_tag(ec)}] {enemy_pos} "
+                    f"[{bear}] distance {proj_dist:.1f} range:{e_range:.0f} "
+                    f"| {threat_tag}: SAFE ({capability})"
+                )
+            else:
+                lines.append(
+                    f"    vs CLUSTER {ec.label} [{_cluster_type_tag(ec)}] {enemy_pos} "
+                    f"[{bear}] distance {proj_dist:.1f} range:{e_range:.0f} "
+                    f"| {threat_tag}: {threat_str} "
+                    f"| str {e_str:.1f} "
+                    f"| ratio {fc.count}/{e_str:.1f} [{rlat}] "
+                    f"| {vel_lbl}"
+                )
+
+    return "\n".join(lines)
 
 
 def _fmt_forces(
@@ -276,7 +393,7 @@ def _fmt_forces(
       YOUR FORCES:
         GROUP A [GND]: 3u @ (32,45) | 240/300HP [80%] | moving NE (3.8 tiles/call)
           [Marine x2, Medivac] | cost:250 | atk+1.0 arm+0.0
-          vs CLUSTER 1 [GND] 4u @ (55,60) dist 8.2 rng:6 | gnd-threat: CONTACT | ... | ETA contact: ~2.0 calls
+          vs CLUSTER 1 [GND] 4u @ (55,60) [NE] distance 8.2 range:6 | gnd-threat: CONTACT | ... | ETA contact: ~2.0 calls
           Marine #1 125HP (100%) @ (31,44)
           Marine #2 100HP (80%) (lost 15% HP since last report) [STIMMED] @ (33,46)
           Medivac #3 150HP (100%) 125en [DETECTOR] @ (32,45)
@@ -401,6 +518,11 @@ def obs_raw_text(bot, step: int) -> str:
         ghost = _fmt_ghost_enemies(bot, step, cfg.k_steps)
         if ghost:
             sections.append(ghost)
+
+    if cfg.show_tactical_overview and cfg.show_prediction:
+        pred = _fmt_prediction(fg, fa, eg, ea, k_steps=cfg.k_steps)
+        if pred:
+            sections.append(pred)
     else:
         # Fallback flat lists when tactical overview is disabled
         if cfg.show_your_units:
