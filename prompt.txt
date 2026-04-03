@@ -129,5 +129,9 @@ MOVE  ← rarely needed
   Format: {"reasoning": "...", "directive": "MOVE", "units": ["A"], "target_x": 32.0, "target_y": 64.0}
 
 Again, respond with ONLY a JSON object containing a directive for each unit cluster — no explanation, no markdown, no extra text.
+When issuing multiple directives, format them as a JSON array string:
+[{"reasoning": "add your explanation for controlling cluster A", "directive": "ATTACK", "units": ["A"], "target_x": 26.0, "target_y": 28.0},
+{"reasoning": "add your explanation for controlling cluster B", "directive": "ATTACK", "units": ["B"], "target_x": 26.0, "target_y": 28.0}]
+
 
 --- BATTLEFIELD REPORT ---

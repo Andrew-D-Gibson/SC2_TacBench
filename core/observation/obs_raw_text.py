@@ -680,13 +680,13 @@ def obs_raw_text(bot, step: int) -> str:
     directives_format_reminder = """
     Please respond with ONLY a JSON object containing a directive for each unit cluster — no explanation, no markdown, no extra text.
     Examples of well formatted responses for a single cluster:
-    {"reasoning": "...", "directive": "MOVE", "units": ["A"], "target_x": 32.0, "target_y": 64.0}
+    {"reasoning": "add your explanation for controlling cluster A", "directive": "MOVE", "units": ["A"], "target_x": 32.0, "target_y": 64.0}
     or
-    {"reasoning": "...", "directive": "ATTACK", "units": ["A"], "target_x": 55.0, "target_y": 60.0}
+    {"reasoning": "add your explanation for controlling cluster A", "directive": "ATTACK", "units": ["A"], "target_x": 55.0, "target_y": 60.0}
     
-    Example of a well formatted response for two clusters ("A" and "B"):
-    {"reasoning": "...", "directive": "ATTACK", "units": ["A"], "target_x": 55.0, "target_y": 60.0}
-    {"reasoning": "...", "directive": "ATTACK", "units": ["B"], "target_x": 55.0, "target_y": 60.0}
+    Example of a well formatted response for two clusters ("A" and "B") using a JSON array string:
+    [{"reasoning": "add your explanation for controlling cluster A", "directive": "ATTACK", "units": ["A"], "target_x": 55.0, "target_y": 60.0},
+    {"reasoning": "add your explanation for controlling cluster B", "directive": "ATTACK", "units": ["B"], "target_x": 55.0, "target_y": 60.0}]
     """
 
     sections.append(directives_format_reminder)
