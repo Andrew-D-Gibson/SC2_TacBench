@@ -4,6 +4,7 @@ from sc2.bot_ai import BotAI
 
 from core.settings import get_settings
 from core.observation.terrain_encoder import build_terrain_grid, format_terrain_grid
+from core.observation.warnings import fmt_trajectory_warnings
 from core.tactics.clustering import UnitCluster, compute_threat, ratio_label, velocity_toward_label, _CONTACT_RANGE_FACTOR
 
 # Cache the downsampled terrain grid (expensive; static per map).
@@ -223,7 +224,7 @@ def _fmt_matchup_lines(fc: UnitCluster, all_enemy: list[UnitCluster], k_steps: i
     """Matchup lines for one friendly cluster against all visible enemy clusters."""
     lines = []
     if not all_enemy:
-        lines.append("    vs ENEMY: none visible")
+        lines.append("    Matchup vs ENEMY: none visible")
         return lines
     for ec in sorted(all_enemy, key=lambda e: e.distance_to(fc)):
         dist    = ec.distance_to(fc)
@@ -254,14 +255,14 @@ def _fmt_matchup_lines(fc: UnitCluster, all_enemy: list[UnitCluster], k_steps: i
         if threat == "SAFE":
             capability = f"no anti-{'air' if fc.is_air else 'ground'}"
             lines.append(
-                f"    vs CLUSTER {ec.label} [{_cluster_type_tag(ec)}] "
+                f"    Matchup vs CLUSTER {ec.label} [{_cluster_type_tag(ec)}] "
                 f"{ec.count}u @ ({ec.center.x:.0f},{ec.center.y:.0f}) "
                 f"[{bear}] distance {dist:.1f} range:{e_range:.0f} "
                 f"| {threat_tag}: SAFE ({capability}) | {vel_lbl}{eta_str}"
             )
         else:
             lines.append(
-                f"    vs CLUSTER {ec.label} [{_cluster_type_tag(ec)}] "
+                f"    Matchup vs CLUSTER {ec.label} [{_cluster_type_tag(ec)}] "
                 f"{ec.count}u @ ({ec.center.x:.0f},{ec.center.y:.0f}) "
                 f"[{bear}] distance {dist:.1f} range:{e_range:.0f} "
                 f"| {threat_tag}: {threat} "
@@ -356,13 +357,13 @@ def _fmt_prediction(
                 capability = f"no anti-{'air' if fc.is_air else 'ground'}"
                 lines.append(
                     f"    vs CLUSTER {ec.label} [{_cluster_type_tag(ec)}] {enemy_pos} "
-                    f"[{bear}] distance {proj_dist:.1f} range:{e_range:.0f} "
+                    f"[{bear} of GROUP {fc.label}] distance {proj_dist:.1f} range:{e_range:.0f} "
                     f"| {threat_tag}: SAFE ({capability})"
                 )
             else:
                 lines.append(
                     f"    vs CLUSTER {ec.label} [{_cluster_type_tag(ec)}] {enemy_pos} "
-                    f"[{bear}] distance {proj_dist:.1f} range:{e_range:.0f} "
+                    f"[{bear} of GROUP {fc.label}] distance {proj_dist:.1f} range:{e_range:.0f} "
                     f"| {threat_tag}: {threat_str} "
                     f"| str {e_str:.1f} "
                     f"| ratio {fc.count}/{e_str:.1f} [{rlat}] "
@@ -413,7 +414,7 @@ def _fmt_forces(
 
     lines = []
 
-    lines.append("YOUR FORCES:")
+    lines.append("\nYOUR FORCES:")
     if not all_friendly:
         lines.append("  none")
     else:
@@ -426,16 +427,19 @@ def _fmt_forces(
                 f"| {hp_str}HP [{fc.hp_pct}%] | {vel_str}"
             )
             lines.append(_fmt_cluster_info(fc))
-            for ml in _fmt_matchup_lines(fc, all_enemy, k_steps):
-                lines.append(ml)
+
             for u in fc.units:
                 lines.append(f"    {_fmt_unit_full(u, bot)}")
+
+            for ml in _fmt_matchup_lines(fc, all_enemy, k_steps):
+                lines.append(ml)
+            
 
     if show_structures and bot.structures:
         for s in sorted(bot.structures, key=lambda s: s.tag):
             lines.append(f"  [STRUCTURE] {_fmt_unit(s, bot)}")
 
-    lines.append("ENEMY FORCES:")
+    lines.append("\nENEMY FORCES:")
     if not all_enemy:
         lines.append("  none visible")
     else:
@@ -484,6 +488,129 @@ def _fmt_ghost_enemies(bot, step: int, k_steps: int) -> str | None:
     return "\n".join(lines)
 
 
+# ── Battlefield summary ───────────────────────────────────────────────────────
+
+def _cluster_size_label(cost: int) -> str:
+    """Qualitative size label derived from total mineral+gas build cost."""
+    if cost < 300:
+        return "tiny"
+    if cost < 600:
+        return "very small"
+    if cost < 1000:
+        return "small"
+    if cost < 1800:
+        return "medium"
+    if cost < 3000:
+        return "large"
+    return "massive"
+
+
+def _map_quadrant(x: float, y: float, bot) -> str:
+    """
+    Compass region for a tile position relative to the full map.
+    Returns a phrase like 'the northwest', 'the center', 'the south', etc.
+    SC2 coordinate system: +x = east, +y = north.
+    """
+    try:
+        ms  = bot.game_info.map_size
+        w, h = ms.width, ms.height
+    except AttributeError:
+        w, h = 200, 200  # fallback for unit tests
+    nx = x / max(w, 1)
+    ny = y / max(h, 1)
+
+    if nx < 0.33:
+        col = "west"
+    elif nx < 0.67:
+        col = "center"
+    else:
+        col = "east"
+
+    if ny < 0.33:
+        row = "south"
+    elif ny < 0.67:
+        row = "central"
+    else:
+        row = "north"
+
+    if row == "central" and col == "center":
+        return "the center"
+    if row == "central":
+        return f"the {col}"
+    if col == "center":
+        return f"the {row}"
+    return f"the {row}{col}"  # e.g. "the northwest", "the southeast"
+
+
+def _cluster_movement_phrase(c: UnitCluster) -> str:
+    """'stationary' or 'moving <compass direction>'."""
+    if c.is_stationary():
+        return "stationary"
+    deg  = math.degrees(math.atan2(c.velocity_y, c.velocity_x)) % 360
+    dirs = ["east", "northeast", "north", "northwest", "west", "southwest", "south", "southeast"]
+    return f"moving {dirs[int((deg + 22.5) / 45) % 8]}"
+
+
+def _fmt_battlefield_summary(
+    friendly_ground: list[UnitCluster],
+    friendly_air:    list[UnitCluster],
+    enemy_ground:    list[UnitCluster],
+    enemy_air:       list[UnitCluster],
+    bot,
+    k_steps: int,
+) -> str:
+    """
+    Plain-English orientation paragraph prepended to the detailed tactical data.
+    Describes each cluster's size, composition, map region, and movement, then
+    restates the mission objective.
+
+    Example:
+      BATTLEFIELD SUMMARY:
+        Your Group A is a medium ground force (Marine x6, Medivac x2) in the southwest, moving northeast.
+        Enemy Cluster 1 is a large ground force (Marine x10, Marauder x4) in the northwest, stationary.
+        OBJECTIVE: Locate and destroy the enemy Command Center.
+    """
+    all_friendly = friendly_ground + friendly_air
+    all_enemy    = enemy_ground    + enemy_air
+
+    if not all_friendly and not all_enemy:
+        return ""
+
+    lines = ["BATTLEFIELD SUMMARY:"]
+
+    for fc in sorted(all_friendly, key=lambda c: c.label):
+        cost     = fc.total_cost_minerals + fc.total_cost_gas
+        size     = _cluster_size_label(cost)
+        loc      = _map_quadrant(fc.center.x, fc.center.y, bot)
+        mov      = _cluster_movement_phrase(fc)
+        type_str = "air" if fc.is_air else "ground"
+        comp     = fc.composition or "unknown units"
+        lines.append(
+            f"  Your Group {fc.label} is a {size} {type_str} force ({comp}) in {loc}, {mov}."
+        )
+
+    for ec in sorted(all_enemy, key=lambda c: c.label):
+        cost     = ec.total_cost_minerals + ec.total_cost_gas
+        size     = _cluster_size_label(cost)
+        loc      = _map_quadrant(ec.center.x, ec.center.y, bot)
+        mov      = _cluster_movement_phrase(ec)
+        type_str = "air" if ec.is_air else "ground"
+        comp     = ec.composition or "unknown units"
+        lines.append(
+            f"  Enemy Cluster {ec.label} is a {size} {type_str} force ({comp}) in {loc}, {mov}."
+        )
+
+    # Restate the mission objective from the map briefing's first line.
+    scenario = getattr(bot, "_map_scenario", None)
+    if scenario:
+        briefing = getattr(scenario, "briefing", None)
+        if briefing:
+            objective_line = briefing.strip().split("\n")[0]
+            lines.append(f"  {objective_line}")
+
+    return "\n".join(lines)
+
+
 # ── Public interface ──────────────────────────────────────────────────────────
 
 def obs_raw_text(bot, step: int) -> str:
@@ -506,6 +633,11 @@ def obs_raw_text(bot, step: int) -> str:
     all_friendly = fg + fa
     all_enemy    = eg + ea
 
+    if cfg.show_battlefield_summary:
+        summary = _fmt_battlefield_summary(fg, fa, eg, ea, bot, k_steps=cfg.k_steps)
+        if summary:
+            sections.append(summary)
+
     if cfg.show_terrain:
         sections.append(_fmt_terrain(bot, cfg.terrain_downsample, all_friendly, all_enemy))
 
@@ -523,7 +655,13 @@ def obs_raw_text(bot, step: int) -> str:
         pred = _fmt_prediction(fg, fa, eg, ea, k_steps=cfg.k_steps)
         if pred:
             sections.append(pred)
-    else:
+
+    if cfg.show_tactical_overview and cfg.show_trajectory_warnings:
+        warn = fmt_trajectory_warnings(fg, fa, eg, ea, bot, k_steps=cfg.k_steps)
+        if warn:
+            sections.append(warn)
+
+    if not cfg.show_tactical_overview:
         # Fallback flat lists when tactical overview is disabled
         if cfg.show_your_units:
             sections.append(_fmt_units(bot.units, "YOUR UNITS", bot))
@@ -538,5 +676,19 @@ def obs_raw_text(bot, step: int) -> str:
         result = _fmt_structures(bot.enemy_structures, "ENEMY STRUCTURES", bot)
         if result:
             sections.append(result)
+
+    directives_format_reminder = """
+    Please respond with ONLY a JSON object containing a directive for each unit cluster — no explanation, no markdown, no extra text.
+    Examples of well formatted responses for a single cluster:
+    {"reasoning": "...", "directive": "MOVE", "units": ["A"], "target_x": 32.0, "target_y": 64.0}
+    or
+    {"reasoning": "...", "directive": "ATTACK", "units": ["A"], "target_x": 55.0, "target_y": 60.0}
+    
+    Example of a well formatted response for two clusters ("A" and "B"):
+    {"reasoning": "...", "directive": "ATTACK", "units": ["A"], "target_x": 55.0, "target_y": 60.0}
+    {"reasoning": "...", "directive": "ATTACK", "units": ["B"], "target_x": 55.0, "target_y": 60.0}
+    """
+
+    sections.append(directives_format_reminder)
 
     return "\n".join(sections)

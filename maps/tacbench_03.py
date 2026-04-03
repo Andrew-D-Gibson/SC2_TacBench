@@ -9,19 +9,19 @@ _CC_TYPES = frozenset([
 ])
 
 _BRIEFING = """\
-OBJECTIVE: Locate and destroy the enemy Command Center.
+OBJECTIVE: Build Barracks then Marines to destroy the enemy Command Center.
 You win when the enemy Command Center is destroyed.
-You lose if all your combat units are eliminated.\
+You lose if all your units are eliminated or time runs out.\
 """
 
 
 class MapScenario(BaseMapScenario):
     """
-    tacbench_01 — head-to-head assault.
+    tacbench_03 — building test
 
-    Win:  the enemy Command Center is destroyed. Tracks sighting state so
+    Win:  the enemy Command Center is destroyed Tracks sighting state so
           the condition is immune to fog-of-war false positives.
-    Loss: bot army count drops to zero.
+    Loss: bot unit count drops to zero or time runs out.
     """
 
     briefing = _BRIEFING
@@ -39,4 +39,4 @@ class MapScenario(BaseMapScenario):
         return self._seen_enemy_cc and not bot.enemy_structures.of_type(_CC_TYPES)
 
     def check_loss(self, bot) -> bool:
-        return bot.army_count == 0
+        return bot.supply_used == 0

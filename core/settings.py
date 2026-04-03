@@ -27,8 +27,10 @@ class TacBenchSettings(BaseSettings):
     show_supply: bool = True
     show_game_time: bool = True
     show_locations: bool = True
-    show_tactical_overview: bool = True  # per-cluster matchups with range/strength/velocity info
-    show_prediction: bool = True         # projected cluster positions + threat analysis at next LLM call
+    show_battlefield_summary: bool = True   # qualitative plain-English summary of all clusters + objective
+    show_tactical_overview: bool = True   # per-cluster matchups with range/strength/velocity info
+    show_prediction: bool = True          # projected cluster positions + threat analysis at next LLM call
+    show_trajectory_warnings: bool = True # intercept predictions: who is headed toward whom and when
     cluster_radius: float = 12.0         # tile radius used to group units into clusters
     cluster_track_interval: int = 5      # update cluster velocities every N game steps
 
@@ -43,6 +45,11 @@ class TacBenchSettings(BaseSettings):
     # Warning: adds ~500-1500 tokens depending on map size and downsample factor.
     show_terrain: bool = False
     terrain_downsample: int = 4  # higher = fewer tokens, less detail
+
+    # If true, the game runs in real time and LLM calls are non-blocking (fire-and-forget).
+    # Units continue acting on the last directive while the LLM thinks.
+    # If false, the game pauses each K_STEPS interval until the LLM responds.
+    realtime: bool = False
 
     # Which bot implementation to use: "ollama", "claude", or "fairlib"
     bot_type: str = "ollama"

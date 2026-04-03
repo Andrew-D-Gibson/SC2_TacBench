@@ -69,7 +69,7 @@ if __name__ == "__main__":
                 Bot(player_race, bot),
                 Computer(opponent_race, opponent_difficulty),
             ],
-            realtime=True,
+            realtime=False,
         )
     except ValueError as e:
         if _SC2_LOOP_OVERFLOW in str(e) or "out of range" in str(e).lower():

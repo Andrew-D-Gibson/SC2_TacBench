@@ -70,6 +70,7 @@ class BaseSC2Bot(BotAI):
         self.SHOW_LLM_PROMPT       = settings.show_llm_prompt
         self.SHOW_HISTORY          = settings.show_history
         self.HISTORY_LENGTH        = settings.history_length
+        self.REALTIME              = settings.realtime
 
     # --- Unit ID and HP delta helpers (used by obs_raw_text) ---
 
@@ -174,24 +175,22 @@ class BaseSC2Bot(BotAI):
                 self, self.step_count, self.CLUSTER_RADIUS
             )
 
-        # Check whether a prior LLM task finished and update cached directive.
-        await self._check_llm_task()
-
-        # Only build the battlefield observation (and snapshot HP history for
-        # delta tracking) when we are actually going to send it to the LLM.
-        # If the previous call is still in-flight we skip entirely — otherwise
-        # get_hp_delta would advance _unit_hp_history without the LLM ever
-        # seeing those values, causing the structure alerts to drift out of sync.
-        if self.step_count % self.K_STEPS == 0:
-            if not (self._pending_llm_task and not self._pending_llm_task.done()):
-                battlefield = obs_raw_text(self, self.step_count)
-                if self._map_scenario and self._map_scenario.briefing:
-                    battlefield = self._map_scenario.briefing + "\n\n" + battlefield
-                if self.SHOW_HISTORY and self.episode_log:
-                    battlefield += "\n\n" + self._build_history_section(self.HISTORY_LENGTH)
-
-                self._schedule_llm_call(self.step_count, battlefield)
-
+        if self.REALTIME:
+            # Real-time mode: game runs continuously; LLM calls are non-blocking.
+            # Units keep executing the last directive while the LLM thinks.
+            # HP-delta history is only advanced when a call is actually dispatched,
+            # so structure alerts stay in sync even when calls are skipped mid-flight.
+            await self._check_llm_task()
+            if self.step_count % self.K_STEPS == 0:
+                if not (self._pending_llm_task and not self._pending_llm_task.done()):
+                    battlefield = self._build_battlefield_text()
+                    self._schedule_llm_call(self.step_count, battlefield)
+        else:
+            # Non-real-time mode: game pauses every K_STEPS until the LLM responds.
+            if self.step_count % self.K_STEPS == 0:
+                battlefield = self._build_battlefield_text()
+                result = await self._run_llm_call(self.step_count, battlefield)
+                self._apply_llm_result(result)
 
 
     async def on_end(self, game_result: Result):
@@ -211,6 +210,15 @@ class BaseSC2Bot(BotAI):
         console.print_game_over(outcome, self.step_count, len(self.episode_log))
         self._write_episode_log(outcome)
 
+
+    def _build_battlefield_text(self) -> str:
+        """Assemble the full LLM prompt: observation + optional briefing + optional history."""
+        text = obs_raw_text(self, self.step_count)
+        if self._map_scenario and self._map_scenario.briefing:
+            text = self._map_scenario.briefing + "\n\n" + text
+        if self.SHOW_HISTORY and self.episode_log:
+            text += "\n\n" + self._build_history_section(self.HISTORY_LENGTH)
+        return text
 
     # --- Logging and LLM scheduling helpers ---
 
@@ -256,6 +264,7 @@ class BaseSC2Bot(BotAI):
                     "K_STEPS": self.K_STEPS,
                     "MAX_STEPS": self.MAX_STEPS,
                     "FALLBACK_DIRECTIVE": self.FALLBACK_DIRECTIVE,
+                    "game_step": self.client.game_step,
                 },
             }
             f.write(json.dumps(summary, indent=4) + "\n")

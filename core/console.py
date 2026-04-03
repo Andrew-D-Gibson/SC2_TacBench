@@ -188,3 +188,118 @@ def warn(msg: str):
 
 def error(msg: str):
     print(f"{BOLD}{RED}  ✗  {msg}{RESET}")
+
+
+# ── Replay overlay ─────────────────────────────────────────────────────────────
+
+def print_replay_banner(map_name: str, log_name: str, summary: dict, total_log_steps: int):
+    """Opening banner for replay observation mode."""
+    w = _W
+    title = "  TacBench Replay Observer  "
+    outcome = summary.get("outcome", "?")
+    config  = summary.get("config", {})
+    model   = config.get("MODEL_NAME", "?")
+    k       = config.get("K_STEPS", "?")
+    total_s = summary.get("total_steps", "?")
+    total_c = summary.get("total_llm_calls", total_log_steps)
+
+    print()
+    print(f"{BOLD}{MAGENTA}{'═' * w}{RESET}")
+    print(f"{BOLD}{MAGENTA}{title.center(w)}{RESET}")
+    print(f"{BOLD}{MAGENTA}{'─' * w}{RESET}")
+    print(f"{MAGENTA}  Map:        {BOLD}{map_name}{RESET}")
+    print(f"{MAGENTA}  Log:        {BOLD}{log_name}{RESET}")
+    if summary:
+        outcome_col = BRIGHT_GREEN if outcome == "WIN" else BRIGHT_RED if outcome == "LOSS" else YELLOW
+        print(f"{MAGENTA}  Outcome:    {BOLD}{outcome_col}{outcome}{RESET}")
+        print(f"{MAGENTA}  Model:      {BOLD}{model}{RESET}{MAGENTA}  (K_STEPS={k}){RESET}")
+        print(f"{MAGENTA}  LLM Calls:  {BOLD}{total_c}{RESET}{MAGENTA}  over {total_s} steps{RESET}")
+    else:
+        print(f"{YELLOW}  (no log paired — replay without LLM overlay){RESET}")
+    print(f"{BOLD}{MAGENTA}{'═' * w}{RESET}")
+    print()
+
+
+def print_replay_llm_step(step: int, game_time: str, entry: dict, show_battlefield: bool = False):
+    """
+    Print the LLM overlay for one step: directives + reasoning, and
+    optionally the full stored battlefield text.
+    """
+    w           = _W
+    directives  = entry.get("directives") or []
+    latency_ms  = entry.get("llm_latency_ms", 0)
+    llm_error   = entry.get("llm_error")
+    fallback    = entry.get("fallback_used", False)
+    battlefield = entry.get("battlefield") or []
+
+    # Header
+    tag = f" REPLAY  Step {step}  @  {game_time}  ──  {latency_ms:,} ms "
+    pad = max(0, w - len(tag))
+    header_col = RED if llm_error or fallback else MAGENTA
+    print(f"\n{BOLD}{header_col}{'◈' * 2}{tag}{'─' * pad}{RESET}")
+
+    raw_output = entry.get("raw") or ""
+
+    if llm_error:
+        print(f"  {BOLD}{RED}LLM ERROR: {llm_error}{RESET}")
+        if raw_output:
+            print(f"  {DIM}Raw output:{RESET}")
+            for line in str(raw_output).splitlines():
+                print(f"    {DIM}{line}{RESET}")
+    elif not directives:
+        print(f"  {YELLOW}(no directives recorded){RESET}")
+    else:
+        for d in directives:
+            name        = d.get("directive", "?")
+            units       = d.get("units")
+            tx, ty      = d.get("target_x"), d.get("target_y")
+            reasoning   = d.get("reasoning") or ""
+            fb          = d.get("fallback_used", False)
+            col         = _directive_color(name, fb)
+            units_str   = f' [{",".join(str(u) for u in units)}]' if units else " [ALL]"
+            print(f"  {BOLD}{col}► {name}{units_str}{RESET}", end="")
+            if tx is not None and ty is not None:
+                print(f"  {DIM}→ ({tx:.1f}, {ty:.1f}){RESET}", end="")
+            print()
+            if reasoning:
+                r = _trunc(reasoning, w - 7)
+                print(f"    {DIM}\"{r}\"{RESET}")
+            if fb:
+                print(f"    {YELLOW}⚠  fallback used{RESET}")
+
+    # Show raw LLM output whenever any fallback was used — helps diagnose why
+    # the directive parser failed (malformed JSON, refusal, garbled output, etc.)
+    if fallback and not llm_error and raw_output:
+        print(f"  {YELLOW}Raw LLM output:{RESET}")
+        for line in str(raw_output).splitlines()[:20]:  # cap at 20 lines
+            print(f"    {DIM}{line}{RESET}")
+        raw_lines = str(raw_output).splitlines()
+        if len(raw_lines) > 20:
+            print(f"    {DIM}… ({len(raw_lines) - 20} more lines){RESET}")
+
+    if show_battlefield and battlefield:
+        print(f"\n  {DIM}{'─' * (w - 2)}{RESET}")
+        for line in battlefield:
+            print(f"  {DIM}{line}{RESET}")
+        print(f"  {DIM}{'─' * (w - 2)}{RESET}")
+
+    print(f"{header_col}{'─' * w}{RESET}")
+
+
+def print_replay_end(outcome: str, total_steps: int, total_calls: int):
+    """Summary line printed when the replay finishes."""
+    if outcome == "WIN":
+        col, icon = BRIGHT_GREEN, "★"
+    elif outcome == "LOSS":
+        col, icon = BRIGHT_RED, "✗"
+    else:
+        col, icon = YELLOW, "─"
+
+    w = _W
+    title = f"  {icon}  REPLAY COMPLETE: {outcome}  {icon}  "
+    print(f"\n{BOLD}{col}{'═' * w}{RESET}")
+    print(f"{BOLD}{col}{title.center(w)}{RESET}")
+    print(f"{col}{'─' * w}{RESET}")
+    print(f"{col}  Total Steps : {total_steps:,}{RESET}")
+    print(f"{col}  LLM Calls   : {total_calls:,}{RESET}")
+    print(f"{BOLD}{col}{'═' * w}{RESET}\n")

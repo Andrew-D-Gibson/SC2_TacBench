@@ -174,7 +174,7 @@ def format_terrain_grid(
 
     def build_legend() -> str:
         lines = [
-            "Legend:",
+            "\nLegend:",
             ". = low ground",
             "~ = medium ground",
             "^ = high ground",
